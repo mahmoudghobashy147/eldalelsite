@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/eldalelsite/static/js/main.a36980be.js",
+    "main.js": "/eldalelsite/static/js/main.891ab05e.js",
     "index.html": "/eldalelsite/index.html",
-    "main.a36980be.js.map": "/eldalelsite/static/js/main.a36980be.js.map"
+    "main.891ab05e.js.map": "/eldalelsite/static/js/main.891ab05e.js.map"
   },
   "entrypoints": [
-    "static/js/main.a36980be.js"
+    "static/js/main.891ab05e.js"
   ]
 }
