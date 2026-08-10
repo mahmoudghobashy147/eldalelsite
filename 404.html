@@ -18,9 +18,12 @@
     (function () {
       var l = window.location;
       var path = l.pathname + l.search + l.hash;
-      // الموقع شغال على جذر الدومين المخصص (eldalel-elshamel.online) مباشرة،
-      // فبنحول للجذر "/" مع تمرير المسار الأصلي في كويري سترينج مؤقت
-      l.replace(l.protocol + "//" + l.host + "/?__redirect=" + encodeURIComponent(path));
+      // بنخزّن المسار الأصلي في sessionStorage بدل ما نحطه في كويري سترينج،
+      // عشان نتحول لرابط "/" النضيف بالظبط (من غير أي إضافات) اللي أكيد شغال
+      // ومحدّث دايمًا، بدل ما نعتمد على رابط "?__redirect=..." اللي ممكن يتخزن
+      // كاش قديم على سيرفرات GitHub لوحده بمعزل عن الصفحة الرئيسية العادية
+      sessionStorage.setItem("daleel_redirect_path", path);
+      l.replace(l.protocol + "//" + l.host + "/");
     })();
   </script>
 </head>
