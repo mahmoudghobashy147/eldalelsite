@@ -40,6 +40,9 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Copy custom app icons (لوجو الدليل الشامل بدل الأيقونة الافتراضية)
+        run: cp -r android-icons/* android/app/src/main/res/
+
       - name: Sync Capacitor
         run: npx cap sync android
 
