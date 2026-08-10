@@ -1,0 +1,11 @@
+{
+  "appId": "com.company.eldalelshamel",
+  "appName": "الدليل الشامل",
+  "webDir": "build",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

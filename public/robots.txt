@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://eldalel-elshamel.online/sitemap.xml

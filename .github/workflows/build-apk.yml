@@ -1,0 +1,53 @@
+name: Build Android APK
+
+# بيشتغل يدويًا لما تدوس "Run workflow" من تاب Actions في GitHub، أو تلقائيًا
+# كل ما ترفع كود جديد على فرع main (تقدر تشيل الجزء ده لو عايز يدوي بس)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java (مطلوب لبناء أندرويد)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install web dependencies
+        run: npm install
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Install Capacitor
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build APK (Debug)
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug
+
+      # الـ APK الناتج بيتحط كـ "Artifact" تقدر تنزّله من صفحة الـ Action بعد
+      # ما تخلص، من غير ما يتنشر على GitHub Releases أو أي حاجة عامة
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: eldalel-elshamel-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

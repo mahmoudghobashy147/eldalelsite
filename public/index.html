@@ -1,17 +1,48 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0A1F44" />
-    <meta
-      name="description"
-      content="الدليل الشامل - دليلك في عالم المقاولات والتشطيبات والعقارات"
-    />
-    <title>الدليل الشامل</title>
-  </head>
-  <body>
-    <noscript>تحتاج إلى تفعيل JavaScript لتشغيل هذا التطبيق.</noscript>
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0A1F44" />
+  <meta name="google-site-verification" content="KMIAOoniHqsJ3VFb-bBSIo8SNYfQATGP6dSrzPCXeGI" />
+
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-P9BNJJSHVB"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-P9BNJJSHVB');
+  </script>
+
+  <!--
+    ده الملف المصدري (source) اللي react-scripts build بيتعامل معاه لتوليد
+    build/index.html. أي تعديل هنا هيظهر في كل عملية build جديدة تلقائيًا،
+    عكس تعديل build/index.html نفسه اللي بيتمسح مع كل build.
+  -->
+
+  <!-- Meta tags افتراضية — بتترفع فورًا وتتغير ديناميكيًا بعدين بواسطة src/seo.js
+       حسب الصفحة المفتوحة، لكن مهمة كـ fallback لأي بوت مبيشغلش جافاسكريبت -->
+  <title>الدليل الشامل - دليلك في عالم المقاولات والتشطيبات والعقارات</title>
+  <meta name="description" content="الدليل الشامل - ابحث عن أفضل الصنايعية والفنيين والشركات والموردين في مصر. كهربائيين، سباكين، نقاشين، شركات تشطيبات ومقاولات في جميع المحافظات." />
+  <link rel="canonical" href="https://eldalel-elshamel.online/" />
+
+  <meta property="og:site_name" content="الدليل الشامل" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="الدليل الشامل - دليلك في عالم المقاولات والتشطيبات والعقارات" />
+  <meta property="og:description" content="ابحث عن أفضل الصنايعية والفنيين والشركات والموردين في مصر" />
+  <meta property="og:url" content="https://eldalel-elshamel.online/" />
+  <meta property="og:image" content="https://eldalel-elshamel.online/og-image.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <script>
+    // (سكريبت استرجاع المسار اتنقل لملف src/index.js، عشان يتنفذ بعد ما main.js
+    // يتحمّل بنجاح، مش قبله — لو نفّذناه هنا في <head> بيغيّر شريط العنوان قبل ما
+    // المتصفح يوصل لسطر تحميل main.js، فالمسار النسبي بتاعه بيتحسب غلط)
+  </script>
+</head>
+<body>
+  <noscript>تحتاج إلى تفعيل JavaScript لتشغيل هذا التطبيق.</noscript>
+  <div id="root"></div>
+</body>
 </html>

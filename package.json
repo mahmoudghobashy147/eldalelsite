@@ -1,9 +1,11 @@
 {
   "name": "daleel-shamil-web",
-  "version": "2.0.0",
-  "homepage": "https://mahmoudghobashy147.github.io/eldalelsite",
+  "version": "2.1.0",
+  "homepage": ".",
   "private": true,
   "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
     "firebase": "^12.15.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -12,10 +14,27 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "postbuild": "react-snap",
+    "sitemap": "node generate-sitemap.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "predeploy": "npm run build",
+    "predeploy": "npm run sitemap && npm run build",
     "deploy": "gh-pages -d build"
+  },
+  "reactSnap": {
+    "source": "build",
+    "include": [
+      "/",
+      "/craftsmen",
+      "/companies",
+      "/about",
+      "/how-it-works",
+      "/faq",
+      "/privacy",
+      "/terms"
+    ],
+    "puppeteerArgs": ["--no-sandbox", "--disable-setuid-sandbox"],
+    "skipThirdPartyRequests": true
   },
   "browserslist": {
     "production": [
@@ -31,6 +50,8 @@
     ]
   },
   "devDependencies": {
-    "gh-pages": "^6.3.0"
+    "@capacitor/cli": "^6.1.2",
+    "gh-pages": "^6.3.0",
+    "react-snap": "^1.23.0"
   }
 }

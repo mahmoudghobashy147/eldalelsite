@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!--
+  ملف 404.html — حل مشكلة الروابط المباشرة على GitHub Pages
+  ============================================================
+  GitHub Pages سيرفر ملفات ثابتة بس، مبيعرفش إن /craftsmen/ahmed-xyz
+  المفروض يرجع نفس index.html (زي أي SPA فيه routing من جوا الجافاسكريبت).
+  فلما حد يفتح الرابط ده مباشرة (أو يعمل Refresh وهو فيه)، GitHub Pages
+  هيرجع الصفحة دي (404.html) بدل ما يديله Not Found حقيقي.
+  الصفحة دي بتحول المسار لكويري سترينج وتوديه لـ index.html، واللي
+  بدوره فيه سكريبت صغير بيرجّع المسار الأصلي تاني قبل ما React يشتغل.
+  الطريقة دي معروفة ومستخدمة بشكل واسع لمواقع الـ SPA على GitHub Pages.
+-->
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>الدليل الشامل</title>
+  <script>
+    (function () {
+      var l = window.location;
+      var path = l.pathname + l.search + l.hash;
+      // بنخزّن المسار الأصلي في sessionStorage بدل ما نحطه في كويري سترينج،
+      // عشان نتحول لرابط "/" النضيف بالظبط (من غير أي إضافات) اللي أكيد شغال
+      // ومحدّث دايمًا، بدل ما نعتمد على رابط "?__redirect=..." اللي ممكن يتخزن
+      // كاش قديم على سيرفرات GitHub لوحده بمعزل عن الصفحة الرئيسية العادية
+      sessionStorage.setItem("daleel_redirect_path", path);
+      l.replace(l.protocol + "//" + l.host + "/");
+    })();
+  </script>
+</head>
+<body>
+  جاري التحويل...
+</body>
+</html>
