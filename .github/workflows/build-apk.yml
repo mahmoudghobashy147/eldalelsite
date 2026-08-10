@@ -28,6 +28,9 @@ jobs:
       - name: Install web dependencies
         run: npm install
 
+      - name: Fix executable permissions (مشكلة شائعة على Linux runners)
+        run: chmod -R +x node_modules/.bin
+
       - name: Build web app
         run: npm run build
 
