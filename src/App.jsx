@@ -62,6 +62,17 @@ const registerPushToken = async (uid) => {
   try {
     if (Capacitor.isNativePlatform()) {
       // ─── مسار تطبيق الأندرويد (APK) ───
+      // لازم نعمل "قناة إشعارات" (Notification Channel) صراحةً — من غيرها
+      // أندرويد 8+ بيرفض يعرض أي إشعار خالص حتى لو وصل فعليًا من السيرفر،
+      // من غير أي رسالة خطأ ظاهرة (بالظبط اللي كان بيحصل قبل الإصلاح ده)
+      await PushNotifications.createChannel({
+        id: "default_channel",
+        name: "إشعارات الدليل الشامل",
+        description: "إشعارات الطلبات والرسائل والتحديثات",
+        importance: 5, // أعلى أولوية — يظهر فورًا مع صوت
+        visibility: 1,
+        vibration: true,
+      }).catch(() => {});
       const permStatus = await PushNotifications.requestPermissions();
       if (permStatus.receive !== "granted") return;
       await PushNotifications.register();
@@ -1379,7 +1390,6 @@ const GlobalStyles = () => {
       .desktop-chat-window-panel{height:60vh}
       .desktop-scroll-wrap{display:flex!important;flex-wrap:wrap!important;overflow:visible!important}
       .desktop-scroll-wrap>*{flex:0 0 auto}
-      .tab-bar{display:none}
       .desktop-hide{display:none!important}
       @media(max-width:559px){ .desktop-hide-narrow{display:none!important} }
 
@@ -6468,6 +6478,38 @@ function App() {
   });
   // لو المستخدم داخل بجلسة محفوظة من قبل (مش أول تسجيل دخول)، برضو نتأكد إن جهازه مسجل للإشعارات
   useEffect(() => { if (user?.uid) registerPushToken(user.uid); }, [user?.uid]);
+
+  // ═══════════ التعامل مع زرار الرجوع الفيزيائي على أندرويد ═══════════
+  // المشكلة الأصلية: أندرويد بيفتكر إنك "طلعت من التطبيق" لأي دوسة على زرار
+  // الرجوع، لأن التنقل جوه التطبيق (تابات، بروفايلات) بيحصل بتغيير متغيرات
+  // React مش برابط حقيقي جديد يضيفه أندرويد لتاريخه. الحل: نتحكم في زرار
+  // الرجوع يدويًا — نقفل أي حاجة مفتوحة (بروفايل، مودال) الأول، ولو مفيش
+  // حاجة مفتوحة والمستخدم في الرئيسية بالفعل، نطلب تأكيد قبل الخروج الفعلي
+  // (دوسة تانية خلال ثانيتين تقفل التطبيق فعلًا) بدل ما يقفل من أول دوسة.
+  const lastBackPress = useRef(0);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let listenerHandle;
+    (async () => {
+      const { App: CapApp } = await import("@capacitor/app");
+      listenerHandle = await CapApp.addListener("backButton", () => {
+        if (showQuickRequest) { setShowQuickRequest(false); return; }
+        if (showPayment) { setShowPayment(false); return; }
+        if (selectedMember) { setSelectedMember(null); navigateTo("/", { replace: true }); return; }
+        if (activeTab !== "home") { setActiveTab("home"); return; }
+        // إحنا فعليًا في الشاشة الرئيسية ومفيش حاجة مفتوحة — نطلب تأكيد الخروج
+        const now = Date.now();
+        if (now - lastBackPress.current < 2000) {
+          CapApp.exitApp();
+        } else {
+          lastBackPress.current = now;
+          showToast("اضغط رجوع مرة تانية للخروج");
+        }
+      });
+    })();
+    return () => { listenerHandle?.remove?.(); };
+  }, [showQuickRequest, showPayment, selectedMember, activeTab]);
+
   // استقبال الإشعار وهو التطبيق مفتوح فعليًا قدام المستخدم (foreground) — بيتعرض كـ toast
   // داخل التطبيق، عكس لما يكون التطبيق مقفول واللي بيتكفّل بالعرض هو الـ Service Worker
   useEffect(() => {
