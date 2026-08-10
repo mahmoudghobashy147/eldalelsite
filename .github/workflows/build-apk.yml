@@ -35,13 +35,26 @@ jobs:
         run: npm run build
 
       - name: Install Capacitor
-        run: npm install @capacitor/core @capacitor/cli @capacitor/android
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/push-notifications
 
       - name: Add Android platform
         run: npx cap add android
 
       - name: Copy custom app icons (لوجو الدليل الشامل بدل الأيقونة الافتراضية)
         run: cp -r android-icons/* android/app/src/main/res/
+
+      # لازم عشان الإشعارات الحقيقية (Push Notifications) تشتغل — ده الملف اللي
+      # بيربط تطبيق الأندرويد بمشروع Firebase بتاعنا، متنزّل من Firebase Console
+      # وموجود في جذر المشروع
+      - name: Add google-services.json
+        run: cp google-services.json android/app/google-services.json
+
+      # بنضيف Google Services Gradle Plugin يدويًا لأن مشروع الأندرويد بيتولد من
+      # الصفر كل مرة (مش متسجل في المستودع)، فمحتاجين نحقن السطرين دول تلقائيًا
+      - name: Add Google Services Gradle plugin
+        run: |
+          sed -i "/classpath 'com.android.tools.build:gradle/a\\        classpath 'com.google.gms:google-services:4.4.2'" android/build.gradle
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
 
       - name: Sync Capacitor
         run: npx cap sync android

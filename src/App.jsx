@@ -5,6 +5,8 @@ import { getFirestore, collection, query, where, orderBy, limit, startAfter, get
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getMessaging, getToken, onMessage, isSupported as isMessagingSupported } from "firebase/messaging";
+import { Capacitor } from "@capacitor/core";
+import { PushNotifications } from "@capacitor/push-notifications";
 import {
   SITE_URL, buildMemberPath, buildMemberUrl, parseCurrentPath, navigateTo,
   updateMetaTags, injectSchema, buildLocalBusinessSchema, buildBreadcrumbSchema, slugify,
@@ -47,18 +49,43 @@ const FCM_VAPID_KEY = "BFv-nBH0HEkAIBwhJ6OaVzld9x1rtyAFiiPpxskeJSPHfeq4MDDCC9UEp
 // بيطلب إذن الإشعارات من المستخدم، ولو وافق بيسجل الـ token بتاعه على مستنده في Firestore
 // عشان لما نبعت إشعار من السيرفر نعرف نوصله لجهازه بالظبط. بيفشل بهدوء (من غير ما يبوظ
 // حاجة في التطبيق) لو المتصفح مش بيدعم الإشعارات أو المستخدم رفض الإذن.
+//
+// الدالة دي بقت بتفرّق بين حالتين مختلفتين تمامًا:
+// 1) تطبيق الأندرويد المبني بـ Capacitor (APK) — لازم نستخدم الـ FCM الأصلي
+//    بتاع النظام (@capacitor/push-notifications) عشان الإشعارات توصل فعليًا لشريط
+//    الإشعارات والعلامة على الأيقونة حتى لو التطبيق مقفول. طريقة الويب العادية
+//    (Service Worker + VAPID) بتفشل بصمت جوه WebView التطبيق ومش بتوصل للخلفية.
+// 2) الموقع العادي على المتصفح (Chrome, Edge...) — بتفضل نفس الطريقة القديمة
+//    شغالة زي ما هي بالظبط.
 const registerPushToken = async (uid) => {
+  if (!uid) return;
   try {
-    if (!uid || FCM_VAPID_KEY === "ضع_مفتاح_VAPID_هنا") return; // لسه محطوطش المفتاح
-    const supported = await isMessagingSupported().catch(() => false);
-    if (!supported || typeof Notification === "undefined") return;
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
-    const messaging = getMessaging(app);
-    const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js").catch(() => null);
-    const token = await getToken(messaging, { vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: swReg || undefined });
-    if (token) {
-      await updateDoc(doc(db, "members", uid), { fcmTokens: arrayUnion(token) }).catch(() => {});
+    if (Capacitor.isNativePlatform()) {
+      // ─── مسار تطبيق الأندرويد (APK) ───
+      const permStatus = await PushNotifications.requestPermissions();
+      if (permStatus.receive !== "granted") return;
+      await PushNotifications.register();
+      PushNotifications.addListener("registration", async (token) => {
+        if (token?.value) {
+          await updateDoc(doc(db, "members", uid), { fcmTokens: arrayUnion(token.value) }).catch(() => {});
+        }
+      });
+      PushNotifications.addListener("registrationError", (err) => {
+        console.log("Native push registration error:", err?.error || err);
+      });
+    } else {
+      // ─── مسار المتصفح العادي (زي ما كان) ───
+      if (FCM_VAPID_KEY === "ضع_مفتاح_VAPID_هنا") return; // لسه محطوطش المفتاح
+      const supported = await isMessagingSupported().catch(() => false);
+      if (!supported || typeof Notification === "undefined") return;
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
+      const messaging = getMessaging(app);
+      const swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js").catch(() => null);
+      const token = await getToken(messaging, { vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: swReg || undefined });
+      if (token) {
+        await updateDoc(doc(db, "members", uid), { fcmTokens: arrayUnion(token) }).catch(() => {});
+      }
     }
   } catch (e) {
     console.log("registerPushToken:", e?.message || e);
