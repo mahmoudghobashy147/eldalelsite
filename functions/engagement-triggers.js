@@ -10,27 +10,32 @@ function eventMarkerRef(eventId) {
   return db.collection("functionEvents").doc(safeId);
 }
 
-async function applyMemberCounterEvent(event, memberId, field, delta, type) {
-  if (!memberId || !Number.isFinite(delta)) return;
-  const memberRef = db.collection("members").doc(String(memberId));
+async function applyCounterEvent(event, collectionName, documentId, field, delta, type) {
+  if (!documentId || !Number.isFinite(delta)) return;
+  const targetRef = db.collection(collectionName).doc(String(documentId));
   const markerRef = eventMarkerRef(event.id);
 
   await db.runTransaction(async (tx) => {
-    const [markerSnap, memberSnap] = await Promise.all([
+    const [markerSnap, targetSnap] = await Promise.all([
       tx.get(markerRef),
-      tx.get(memberRef),
+      tx.get(targetRef),
     ]);
-    if (markerSnap.exists || !memberSnap.exists) return;
+    if (markerSnap.exists || !targetSnap.exists) return;
 
-    const current = Number(memberSnap.data()?.[field] || 0);
+    const current = Number(targetSnap.data()?.[field] || 0);
     const next = Math.max(0, current + delta);
-    tx.update(memberRef, { [field]: next });
+    tx.update(targetRef, { [field]: next });
     tx.set(markerRef, {
       type,
-      memberId: String(memberId),
+      collectionName,
+      documentId: String(documentId),
       createdAt: FieldValue.serverTimestamp(),
     });
   });
+}
+
+async function applyMemberCounterEvent(event, memberId, field, delta, type) {
+  return applyCounterEvent(event, "members", memberId, field, delta, type);
 }
 
 const updateFollowersOnCreate = onDocumentCreated("members/{followingId}/followers/{followerId}", async (event) => {
@@ -48,14 +53,14 @@ const updateFollowersOnDelete = onDocumentDeleted("members/{followingId}/followe
 const updateSavesOnCreate = onDocumentCreated("members/{userId}/saved/{savedMemberId}", async (event) => {
   const data = event.data?.data?.() || {};
   const targetMemberId = String(data.memberId || event.params.savedMemberId || "");
-  if (!targetMemberId) return;
+  if (!targetMemberId || targetMemberId !== String(event.params.savedMemberId || "")) return;
   await applyMemberCounterEvent(event, targetMemberId, "saves", 1, "saved-created");
 });
 
 const updateSavesOnDelete = onDocumentDeleted("members/{userId}/saved/{savedMemberId}", async (event) => {
   const data = event.data?.data?.() || {};
   const targetMemberId = String(data.memberId || event.params.savedMemberId || "");
-  if (!targetMemberId) return;
+  if (!targetMemberId || targetMemberId !== String(event.params.savedMemberId || "")) return;
   await applyMemberCounterEvent(event, targetMemberId, "saves", -1, "saved-deleted");
 });
 
@@ -91,10 +96,26 @@ const updateRatingOnReviewCreate = onDocumentCreated("members/{memberId}/reviews
   });
 });
 
+const updateJobApplicantsOnCreate = onDocumentCreated("jobApplications/{applicationId}", async (event) => {
+  const data = event.data?.data?.() || {};
+  const jobId = String(data.jobId || "");
+  if (!jobId) return;
+  await applyCounterEvent(event, "jobs", jobId, "applicants", 1, "job-application-created");
+});
+
+const updateJobApplicantsOnDelete = onDocumentDeleted("jobApplications/{applicationId}", async (event) => {
+  const data = event.data?.data?.() || {};
+  const jobId = String(data.jobId || "");
+  if (!jobId) return;
+  await applyCounterEvent(event, "jobs", jobId, "applicants", -1, "job-application-deleted");
+});
+
 module.exports = {
   updateFollowersOnCreate,
   updateFollowersOnDelete,
   updateSavesOnCreate,
   updateSavesOnDelete,
   updateRatingOnReviewCreate,
+  updateJobApplicantsOnCreate,
+  updateJobApplicantsOnDelete,
 };
