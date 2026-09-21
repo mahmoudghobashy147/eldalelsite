@@ -44,6 +44,7 @@ const normalizePhone = (value) => {
     appSettingsExists: appSnap.exists,
     adminSecretsExists: secretSnap.exists,
     adminAuthMigrated: Boolean(app.adminAuthMigrated),
+    legacyAdminPinPresent: Object.prototype.hasOwnProperty.call(app, 'adminPin') && String(app.adminPin || '').length > 0,
     hasPinHash: Boolean(secret.pinHash),
     hasSalt: Boolean(secret.salt),
     hasAdminUid: Boolean(adminUid),
