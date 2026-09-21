@@ -1,0 +1,49 @@
+name: Fix Secure Admin Invoker
+
+on:
+  push:
+    paths:
+      - .github/workflows/fix-secure-admin-invoker.yml
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      PROJECT_ID: eldalel-elshamel
+      REGION: us-central1
+      SERVICE: secureadminlogin
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write service account
+        shell: bash
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Allow public invocation of secure admin callable
+        run: |
+          gcloud run services add-iam-policy-binding "$SERVICE" \
+            --project="$PROJECT_ID" \
+            --region="$REGION" \
+            --member="allUsers" \
+            --role="roles/run.invoker" \
+            --quiet
+      - name: Verify callable endpoint is no longer blocked by IAM
+        shell: bash
+        run: |
+          URL="https://us-central1-${PROJECT_ID}.cloudfunctions.net/secureAdminLogin"
+          CODE=$(curl -sS -o "$RUNNER_TEMP/body" -w '%{http_code}' -X OPTIONS "$URL" \
+            -H 'Origin: https://eldalel-elshamel.online' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type')
+          echo "OPTIONS_HTTP=$CODE"
+          test "$CODE" != "403"
+      - name: Cleanup
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
