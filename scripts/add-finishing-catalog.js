@@ -38,7 +38,8 @@ if (!app.includes('{id:"catalog", icon:"🧱", label:"الكتالوج"}')) {
   const signedAnchor = '    {id:"saved", icon:"❤️", label:"المحفوظة"},\n';
   const signedReplacement = signedAnchor + '    {id:"catalog", icon:"🧱", label:"الكتالوج"},\n';
   app = mustReplace(app, signedAnchor, signedReplacement, 'signed catalog tab');
-  const guestAnchor = '    {id:"search", icon:"🔍", label:"البحث"},\n  const first = app.indexOf(guestAnchor, app.indexOf('] : ['));
+  const guestAnchor = '    {id:"search", icon:"🔍", label:"البحث"},\n';
+  const first = app.indexOf(guestAnchor, app.indexOf('] : ['));
   if (first >= 0) {
     const at = first + guestAnchor.length;
     app = app.slice(0, at) + '    {id:"catalog", icon:"🧱", label:"الكتالوج"},\n' + app.slice(at);
