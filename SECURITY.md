@@ -1,21 +1,25 @@
-# Security Policy
+# سياسة الأمان — الدليل الشامل
 
-## Supported Versions
+## الإصدارات المدعومة
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+المشروع حاليًا على سلسلة الإصدار `2.x`، وهي السلسلة التي تستقبل إصلاحات الأمان والتحديثات.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| الإصدار | مدعوم |
+| --- | --- |
+| 2.x | ✅ نعم |
+| أقدم من 2.x | ❌ لا |
 
-## Reporting a Vulnerability
+## الإبلاغ عن ثغرة
 
-Use this section to tell people how to report a vulnerability.
+لو اكتشفت مشكلة أمنية، لا تنشر تفاصيل الاستغلال أو بيانات المستخدمين في Issue عامة. تواصل مع إدارة المشروع بشكل خاص واذكر:
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+- الجزء المتأثر من الموقع أو التطبيق.
+- خطوات إعادة ظهور المشكلة بشكل مختصر.
+- التأثير المتوقع بدون مشاركة بيانات حساسة أو حقيقية لمستخدمين.
+
+## مبادئ الأمان في المشروع
+
+- لا يتم وضع كلمات مرور، مفاتيح حسابات الخدمة أو أسرار إدارية داخل المستودع.
+- ملف `serviceAccountKey.json` مستبعد من Git ويجب الاحتفاظ به خارج المستودع.
+- صلاحيات الإدارة والعمليات الحساسة يجب التحقق منها على Firebase/الخادم، وليس اعتمادًا على بيانات مخزنة محليًا في المتصفح.
+- أي تغيير في قواعد Firestore أو Storage يجب اختباره قبل نشره على بيئة الإنتاج.
