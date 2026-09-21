@@ -55,7 +55,27 @@ jobs:
             tail -c 16000 /tmp/daleel-dom.html || true
             exit 1
           fi
-          echo "✅ Fresh mobile homepage rendered after splash"
+          if grep -q "desktop-nav-links" /tmp/daleel-dom.html; then
+            echo "::error::Mobile viewport rendered the desktop navigation"
+            exit 1
+          fi
+          echo "✅ Fresh mobile homepage rendered with mobile layout"
+      - name: Run desktop browser layout smoke test
+        shell: bash
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=1366,900 --virtual-time-budget=7000 --dump-dom http://127.0.0.1:4173/ > /tmp/daleel-desktop-dom.html 2> /tmp/daleel-desktop-chrome.log || true
+          cat /tmp/daleel-desktop-chrome.log || true
+          if ! grep -q "كل احتياجات البناء والتشطيب في مكان واحد" /tmp/daleel-desktop-dom.html; then
+            echo "::error::Desktop homepage did not render"
+            tail -c 16000 /tmp/daleel-desktop-dom.html || true
+            exit 1
+          fi
+          if ! grep -q "desktop-nav-links" /tmp/daleel-desktop-dom.html; then
+            echo "::error::Desktop viewport did not render the desktop navigation"
+            exit 1
+          fi
+          echo "✅ Fresh desktop homepage rendered with desktop layout"
       - name: Test currently deployed gh-pages files on Android viewport
         shell: bash
         run: |
