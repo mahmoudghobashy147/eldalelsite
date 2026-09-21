@@ -13,11 +13,11 @@ function mustReplace(text, from, to, label) {
 let app = fs.readFileSync(APP, 'utf8');
 
 if (!app.includes('from "./catalog"')) {
-  app = mustReplace(
-    app,
-    'import React,{useState,useEffect,useRef,useCallback,useMemo,Component} from "react";\n',
-    'import React,{useState,useEffect,useRef,useCallback,useMemo,Component} from "react";\nimport { CatalogHomeSection, CatalogScreen, CatalogAdminPanel } from "./catalog";\n',
-    'catalog import'
+  const reactImport = app.match(/^import .* from "react";\r?\n/m);
+  if (!reactImport) throw new Error('Catalog patch failed: React import anchor not found');
+  app = app.replace(
+    reactImport[0],
+    reactImport[0] + 'import { CatalogHomeSection, CatalogScreen, CatalogAdminPanel } from "./catalog";\n'
   );
 }
 
@@ -39,7 +39,8 @@ if (!app.includes('{id:"catalog", icon:"🧱", label:"الكتالوج"}')) {
   const signedReplacement = signedAnchor + '    {id:"catalog", icon:"🧱", label:"الكتالوج"},\n';
   app = mustReplace(app, signedAnchor, signedReplacement, 'signed catalog tab');
   const guestAnchor = '    {id:"search", icon:"🔍", label:"البحث"},\n';
-  const first = app.indexOf(guestAnchor, app.indexOf('] : ['));
+  const guestArrayStart = app.indexOf('] : [', app.indexOf('const tabs = user ? ['));
+  const first = app.indexOf(guestAnchor, guestArrayStart);
   if (first >= 0) {
     const at = first + guestAnchor.length;
     app = app.slice(0, at) + '    {id:"catalog", icon:"🧱", label:"الكتالوج"},\n' + app.slice(at);
