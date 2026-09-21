@@ -15,7 +15,7 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
-    "patch:safety": "node scripts/apply-safe-patches.js && node scripts/apply-plan-field-patches.js && node scripts/apply-chat-rule-patches.js && node scripts/apply-server-notification-patches.js",
+    "patch:safety": "node scripts/apply-safe-patches.js && node scripts/apply-plan-field-patches.js && node scripts/apply-chat-rule-patches.js && node scripts/apply-server-notification-patches.js && node scripts/apply-engagement-counter-patches.js",
     "prestart": "npm run patch:safety",
     "start": "react-scripts start",
     "prebuild": "npm run patch:safety",
