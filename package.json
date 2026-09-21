@@ -20,7 +20,7 @@
     "sitemap": "node generate-sitemap.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "predeploy": "npm run sitemap && npm run build",
+    "predeploy": "npm run build",
     "deploy": "gh-pages -d build"
   },
   "reactSnap": {
