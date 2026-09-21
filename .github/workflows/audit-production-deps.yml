@@ -1,5 +1,6 @@
 name: Audit production dependencies
 
+# Final verification after the locked Functions parser security override.
 on:
   push:
     branches: [main]
