@@ -10,14 +10,18 @@ const normalizePhone = (value) => {
 };
 
 (async () => {
-  const [appSnap, secretSnap] = await Promise.all([
+  const [appSnap, secretSnap, adminMembersSnap] = await Promise.all([
     db.collection('config').doc('appSettings').get(),
     db.collection('config').doc('adminSecrets').get(),
+    db.collection('members').where('isAdmin', '==', true).get(),
   ]);
 
   const app = appSnap.exists ? appSnap.data() : {};
   const secret = secretSnap.exists ? secretSnap.data() : {};
   const adminUid = String(secret.adminUid || '');
+  const appPhone = normalizePhone(app.adminPhone || '');
+  const secretPhone = normalizePhone(secret.phone || '');
+  const derivedAdminEmail = appPhone ? `${appPhone}@daleel.app` : '';
 
   let memberExists = false;
   let memberIsAdmin = false;
@@ -37,14 +41,27 @@ const normalizePhone = (value) => {
     }
   }
 
-  const appPhone = normalizePhone(app.adminPhone || '');
-  const secretPhone = normalizePhone(secret.phone || '');
+  let derivedAuthUserExists = false;
+  let derivedAuthUserDisabled = null;
+  let derivedAuthUidIsAdminMember = false;
+  if (derivedAdminEmail) {
+    try {
+      const user = await admin.auth().getUserByEmail(derivedAdminEmail);
+      derivedAuthUserExists = true;
+      derivedAuthUserDisabled = Boolean(user.disabled);
+      derivedAuthUidIsAdminMember = adminMembersSnap.docs.some((d) => d.id === user.uid);
+    } catch (_) {}
+  }
 
   const result = {
     appSettingsExists: appSnap.exists,
     adminSecretsExists: secretSnap.exists,
     adminAuthMigrated: Boolean(app.adminAuthMigrated),
     legacyAdminPinPresent: Object.prototype.hasOwnProperty.call(app, 'adminPin') && String(app.adminPin || '').length > 0,
+    adminMemberCount: adminMembersSnap.size,
+    derivedAuthUserExists,
+    derivedAuthUserDisabled,
+    derivedAuthUidIsAdminMember,
     hasPinHash: Boolean(secret.pinHash),
     hasSalt: Boolean(secret.salt),
     hasAdminUid: Boolean(adminUid),
@@ -59,8 +76,9 @@ const normalizePhone = (value) => {
 
   console.log('ADMIN_LOGIN_DIAGNOSTIC=' + JSON.stringify(result));
 
-  const criticalOk = result.adminSecretsExists && result.hasPinHash && result.hasSalt && result.hasAdminUid && result.phonesMatch && result.adminMemberExists && result.adminMemberIsAdmin && result.firebaseAuthUserExists && result.firebaseAuthUserDisabled === false;
-  if (!criticalOk) process.exitCode = 2;
+  const existingSecretOk = result.adminSecretsExists && result.hasPinHash && result.hasSalt && result.hasAdminUid && result.phonesMatch && result.adminMemberExists && result.adminMemberIsAdmin && result.firebaseAuthUserExists && result.firebaseAuthUserDisabled === false;
+  const legacyCanMigrate = !result.adminSecretsExists && result.legacyAdminPinPresent && result.adminMemberCount === 1 && result.derivedAuthUserExists && result.derivedAuthUserDisabled === false && result.derivedAuthUidIsAdminMember;
+  if (!existingSecretOk && !legacyCanMigrate) process.exitCode = 2;
 })().catch((err) => {
   console.error('ADMIN_LOGIN_DIAGNOSTIC_ERROR=' + (err?.message || err));
   process.exit(1);
