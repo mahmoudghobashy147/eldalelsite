@@ -19,6 +19,18 @@ function replaceOnce(oldText, newText, label) {
   console.log(`✓ ${label} applied`);
 }
 
+// 0) Never ship historical credential values/comments into a production build.
+// The source repository history must still be treated as compromised and the old
+// credential must remain rotated; this only prevents the stale value reaching new bundles.
+const staleCredentialComment = /\n\s*\/\/ فعليًا من لوحة إعدادات الأدمن حالًا[^\n]*\n\s*\/\/ فعليًا من لوحة إعدادات الأدمن حالًا[^\n]*/;
+// The wording has changed historically, so use a narrower single-line redaction too.
+const beforeRedaction = source;
+source = source.replace(/^\s*\/\/.*القيمة القديمة.*بقت متسربة ومعروفة.*$/gm, "  // تم حذف أي قيمة اعتماد تاريخية من النسخة المبنية — غيّر أي سر قديم ظهر في Git history.");
+if (source !== beforeRedaction) {
+  changed = true;
+  console.log("✓ historical credential comment redacted from build source");
+}
+
 // 1) Editing an existing member profile must never reset engagement counters,
 // ratings, reviews, saves, or the original account creation date.
 replaceOnce(
@@ -85,7 +97,7 @@ replaceOnce(
           } else { throw signInErr; }
         }
         // نتأكد إن مستند العضو الخاص بالأدمن معلّم isAdmin:true (عشان قاعدة isAdmin() في Firestore تشتغل)
-        await setDoc(doc(db,"members",cred.user.uid), { isAdmin:true, name:"الأدمن", phone: cfg.adminPhone||form.phone, type:"vip", status:"approved" }, { merge:true });
+        await setDoc(doc(db,"members",cred.user.uid), { isAdmin:true, name:"الأدمن", phone:cfg.adminPhone||form.phone, type:"vip", status:"approved" }, { merge:true });
         const adminUser = { uid:cred.user.uid, email:adminEmail, phone:cfg.adminPhone||form.phone, displayName:"الأدمن", isAdmin:true };`,
 `        const cred = await DB.signIn(adminEmail, authPass);
         // ممنوع إنشاء حساب أدمن أو ترقية عضو من المتصفح. الحساب لازم يكون
