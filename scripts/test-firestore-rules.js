@@ -48,6 +48,9 @@ async function main() {
       await setDoc(doc(db, "notifications", "broadcast1"), {
         recipientId: null, body: "عام", readBy: [],
       });
+      await setDoc(doc(db, "notifications", "broadcastExisting"), {
+        recipientId: null, body: "عام مقروء من بوب", readBy: ["bob"],
+      });
       await setDoc(doc(db, "notifications", "bobOnly"), {
         recipientId: "bob", body: "خاص ببوب", read: false,
       });
@@ -90,32 +93,27 @@ async function main() {
     await assertFails(updateDoc(doc(alice, "members", "alice"), { createdAt: new Date() }));
     await assertFails(updateDoc(doc(alice, "members", "alice"), { views: 999 }));
 
-    // Pending member may choose a plan; approved member cannot self-upgrade.
     await assertSucceeds(updateDoc(doc(alice, "members", "alice"), { plan: "premium" }));
     await assertFails(updateDoc(doc(bob, "members", "bob"), { plan: "vip" }));
 
     // ── Shared engagement counters ───────────────────────────────
-    // Public profile analytics: exactly +1 only.
     await assertSucceeds(updateDoc(doc(anon, "members", "bob"), { views: 1 }));
     await assertFails(updateDoc(doc(anon, "members", "bob"), { views: 10 }));
     await assertSucceeds(updateDoc(doc(anon, "members", "bob"), { calls: 1 }));
     await assertSucceeds(updateDoc(doc(anon, "members", "bob"), { waMessages: 1 }));
     await assertFails(updateDoc(doc(anon, "members", "bob"), { name: "Hacked" }));
 
-    // Saved/follower counts require authentication and only +/- 1.
     await assertFails(updateDoc(doc(anon, "members", "bob"), { saves: 1 }));
     await assertSucceeds(updateDoc(doc(alice, "members", "bob"), { saves: 1 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { saves: 9 }));
     await assertSucceeds(updateDoc(doc(alice, "members", "bob"), { followersCount: 1 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { followersCount: -1 }));
 
-    // Review aggregate can only advance one review with a valid 1..5 rating.
     await assertSucceeds(updateDoc(doc(alice, "members", "bob"), { reviews: 1, rating: 5 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { reviews: 3, rating: 5 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { reviews: 2, rating: 9 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { reviews: 2, rating: 4, status: "pending" }));
 
-    // Admin can still perform protected operations.
     await assertSucceeds(updateDoc(doc(admin, "members", "alice"), {
       status: "approved", plan: "premium",
     }));
@@ -166,12 +164,28 @@ async function main() {
     await assertSucceeds(getDoc(doc(bob, "notifications", "broadcast1")));
     await assertSucceeds(getDoc(doc(bob, "notifications", "bobOnly")));
     await assertFails(getDoc(doc(alice, "notifications", "bobOnly")));
-    await assertSucceeds(updateDoc(doc(bob, "notifications", "bobOnly"), { read: true }));
-    await assertFails(updateDoc(doc(bob, "notifications", "bobOnly"), { body: "changed" }));
-    await assertSucceeds(updateDoc(doc(alice, "notifications", "broadcast1"), { readBy: ["alice"] }));
+
+    // Browser clients cannot manufacture personal notifications anymore.
     await assertFails(addDoc(collection(anon, "notifications"), {
-      recipientId: "bob", body: "spam",
+      recipientId: "bob", body: "anon spam",
     }));
+    await assertFails(addDoc(collection(alice, "notifications"), {
+      recipientId: "bob", body: "signed-in spam",
+    }));
+    await assertSucceeds(addDoc(collection(admin, "notifications"), {
+      recipientId: "bob", body: "admin message",
+    }));
+
+    // Recipient may mark personal notification read, but may not revert or edit payload.
+    await assertSucceeds(updateDoc(doc(bob, "notifications", "bobOnly"), { read: true }));
+    await assertFails(updateDoc(doc(bob, "notifications", "bobOnly"), { read: false }));
+    await assertFails(updateDoc(doc(bob, "notifications", "bobOnly"), { body: "changed" }));
+
+    // Broadcast readBy only permits appending the current user's uid, preserving all existing readers.
+    await assertSucceeds(updateDoc(doc(alice, "notifications", "broadcast1"), { readBy: ["alice"] }));
+    await assertSucceeds(updateDoc(doc(alice, "notifications", "broadcastExisting"), { readBy: ["bob", "alice"] }));
+    await assertFails(updateDoc(doc(alice, "notifications", "broadcastExisting"), { readBy: ["alice"] }));
+    await assertFails(updateDoc(doc(alice, "notifications", "broadcastExisting"), { readBy: ["bob", "eve", "alice"] }));
 
     // ── Service request ──────────────────────────────────────────
     const requestRef = doc(anon, "serviceRequests", "request1");
