@@ -35,6 +35,9 @@ requireText(app, '<CatalogHomeSection db={db}', 'catalog homepage section');
 requireText(app, 'activeTab==="catalog"', 'catalog screen route');
 requireText(app, '["catalog","🧱","كتالوج مواد التشطيب"]', 'catalog admin navigation');
 requireText(app, '<CatalogAdminPanel db={db}', 'catalog admin panel');
+requireText(app, 'data-home-main-sections="true"', 'explicit homepage main sections');
+requireText(app, 'الصنايعية', 'homepage craftsmen section');
+requireText(app, 'المهندسين والشركات', 'homepage engineers and companies section');
 
 // Catalog capabilities requested by the product brief.
 [
@@ -56,6 +59,9 @@ requireText(app, '<CatalogAdminPanel db={db}', 'catalog admin panel');
   ['availability','availability'],
   ['discount','discount/offers'],
   ['filterable','extensible filters'],
+  ['subCategory','first-class product subcategory'],
+  ['كل الأقسام الفرعية','subcategory filter'],
+  ['القسم الفرعي / نوع المنتج','subcategory admin field'],
 ].forEach(([needle,label])=>requireText(catalog,needle,label));
 
 // New rules are additive and isolated under catalog paths.
