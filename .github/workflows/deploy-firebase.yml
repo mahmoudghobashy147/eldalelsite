@@ -54,6 +54,8 @@ jobs:
         run: |
           npm ci --prefix functions
           node --check functions/index.js
+          node --check functions/notification-triggers.js
+          node --check functions/main.js
 
       - name: Deploy Functions
         if: ${{ inputs.target == 'functions' }}
