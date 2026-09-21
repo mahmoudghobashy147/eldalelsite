@@ -20,8 +20,6 @@ messaging.onBackgroundMessage((payload) => {
   const title = notification.title || data.title || 'الدليل الشامل';
   const options = {
     body: notification.body || data.body || '',
-    icon: '/images/icon-192.png',
-    badge: '/images/icon-192.png',
     data: {
       url: data.url || data.link || '/'
     }
