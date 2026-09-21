@@ -1,1 +1,1 @@
-deploy 2026-09-21 16:19 Africa-Cairo marketplace-production
+deploy 2026-09-21 16:52 Africa-Cairo mobile-splash-blank-screen-fix
