@@ -56,14 +56,76 @@ async function createPersonalNotification(recipientId, data = {}, idempotencyKey
   try {
     await notificationRef.create(payload);
   } catch (error) {
-    // Firestore event handlers can retry. If this exact event already created its
-    // notification, treat the duplicate create as success instead of generating
-    // another document (and another push notification).
     if (error?.code === 6 || error?.code === "already-exists") return notificationRef;
     throw error;
   }
   return notificationRef;
 }
+
+const createServiceRequest = onCall(async (request) => {
+  const text = String(request.data?.text || "").trim();
+  const gov = String(request.data?.gov || "").trim().slice(0, 80);
+  const city = String(request.data?.city || "").trim().slice(0, 120);
+  const suppliedName = String(request.data?.userName || "").trim().slice(0, 120);
+  const suppliedPhone = String(request.data?.phone || "").replace(/[^0-9+]/g, "").slice(0, 20);
+
+  if (text.length < 8 || text.length > 1500) {
+    throw new HttpsError("invalid-argument", "اكتب تفاصيل الطلب بوضوح");
+  }
+
+  const uid = request.auth?.uid || null;
+  const rawIp = String(
+    request.rawRequest?.headers?.["x-forwarded-for"] || request.rawRequest?.ip || "unknown"
+  ).split(",")[0].trim();
+  const sourceKey = crypto.createHash("sha256")
+    .update(uid ? `uid:${uid}` : `ip:${rawIp}`)
+    .digest("hex");
+  const rateRef = db.collection("serviceRequestRate").doc(sourceKey);
+  const nowMs = Date.now();
+  const windowMs = 30 * 60 * 1000;
+  const maxRequests = 5;
+
+  await db.runTransaction(async (tx) => {
+    const rateSnap = await tx.get(rateRef);
+    const rate = rateSnap.exists ? rateSnap.data() : {};
+    const windowStartMs = rate.windowStart?.toMillis?.() || 0;
+    const inWindow = windowStartMs && nowMs - windowStartMs < windowMs;
+    const count = inWindow ? Number(rate.count || 0) : 0;
+    if (count >= maxRequests) {
+      throw new HttpsError("resource-exhausted", "تم إرسال طلبات كثيرة. حاول بعد قليل");
+    }
+    tx.set(rateRef, {
+      count: count + 1,
+      windowStart: inWindow && rate.windowStart ? rate.windowStart : FieldValue.serverTimestamp(),
+      lastRequestAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+
+  let userName = suppliedName;
+  let phone = suppliedPhone;
+  if (uid) {
+    const memberSnap = await db.collection("members").doc(uid).get();
+    if (memberSnap.exists) {
+      const member = memberSnap.data() || {};
+      userName = String(member.name || userName || "").slice(0, 120);
+      phone = String(member.phone || phone || "").replace(/[^0-9+]/g, "").slice(0, 20);
+    }
+  }
+
+  const ref = await db.collection("serviceRequests").add({
+    text,
+    gov,
+    city,
+    userId: uid,
+    userName,
+    phone,
+    status: "open",
+    createdAt: FieldValue.serverTimestamp(),
+    source: "callable",
+  });
+
+  return { success: true, id: ref.id };
+});
 
 const notifyProfileView = onCall(async (request) => {
   const viewerId = request.auth?.uid;
@@ -154,8 +216,6 @@ const notifyOnServiceRequest = onDocumentCreated("serviceRequests/{requestId}", 
   if (!text) return;
   const gov = String(requestData.gov || "").trim();
 
-  // الدليل مستهدف آلاف الأعضاء، لذلك ماينفعش نقف عند أول 500 عضو فقط.
-  // نقرأ على دفعات 500، ونقف أول ما نوصل إلى 25 تطابق أو 5000 عضو كحد حماية.
   const matched = [];
   let lastDoc = null;
   let scanned = 0;
@@ -199,6 +259,7 @@ const notifyOnServiceRequest = onDocumentCreated("serviceRequests/{requestId}", 
 });
 
 module.exports = {
+  createServiceRequest,
   notifyProfileView,
   notifyOnChatMessage,
   notifyOnFollowerCreated,
