@@ -154,19 +154,37 @@ const notifyOnServiceRequest = onDocumentCreated("serviceRequests/{requestId}", 
   if (!text) return;
   const gov = String(requestData.gov || "").trim();
 
-  const membersSnap = await db.collection("members")
-    .where("status", "==", "approved")
-    .limit(500)
-    .get();
+  // الدليل مستهدف آلاف الأعضاء، لذلك ماينفعش نقف عند أول 500 عضو فقط.
+  // نقرأ على دفعات 500، ونقف أول ما نوصل إلى 25 تطابق أو 5000 عضو كحد حماية.
+  const matched = [];
+  let lastDoc = null;
+  let scanned = 0;
+  const pageSize = 500;
+  const maxScanned = 5000;
 
-  const matched = membersSnap.docs
-    .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
-    .filter((member) => {
-      if (gov && String(member.gov || "").trim() !== gov) return false;
+  while (matched.length < 25 && scanned < maxScanned) {
+    let membersQuery = db.collection("members")
+      .where("status", "==", "approved")
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(pageSize);
+    if (lastDoc) membersQuery = membersQuery.startAfter(lastDoc);
+
+    const membersSnap = await membersQuery.get();
+    if (membersSnap.empty) break;
+    scanned += membersSnap.size;
+
+    for (const docSnap of membersSnap.docs) {
+      const member = { id: docSnap.id, ...docSnap.data() };
+      if (gov && String(member.gov || "").trim() !== gov) continue;
       const specialty = String(member.specialty || "").trim();
-      return specialty && arabicTextIncludes(text, specialty);
-    })
-    .slice(0, 25);
+      if (!specialty || !arabicTextIncludes(text, specialty)) continue;
+      matched.push(member);
+      if (matched.length >= 25) break;
+    }
+
+    lastDoc = membersSnap.docs[membersSnap.docs.length - 1];
+    if (membersSnap.size < pageSize) break;
+  }
 
   const body = text.length > 70 ? text.slice(0, 70) + "…" : text;
   await Promise.all(matched.map((member) => createPersonalNotification(member.id, {
