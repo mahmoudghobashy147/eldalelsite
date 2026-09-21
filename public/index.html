@@ -6,6 +6,39 @@
   <meta name="theme-color" content="#0A1F44" />
   <meta name="google-site-verification" content="KMIAOoniHqsJ3VFb-bBSIo8SNYfQATGP6dSrzPCXeGI" />
 
+  <!--
+    Security guard:
+    The React app historically persisted the full user object in localStorage and
+    the admin UI also looked at fields such as isAdmin / admin phone / admin email.
+    localStorage is user-controlled, so an admin-looking persisted object must never
+    be trusted after a reload. Remove only admin-looking cached sessions here before
+    React boots; a real admin can still sign in normally through Firebase and use the
+    dashboard for the current session. Normal member sessions stay untouched.
+  -->
+  <script>
+    (function clearUntrustedPersistedAdminSession() {
+      try {
+        var raw = localStorage.getItem('daleel_user');
+        if (!raw) return;
+        var cached = JSON.parse(raw);
+        var phone = String(cached && cached.phone || '').replace(/\D/g, '');
+        var adminPhone = '01110001986';
+        var adminPhoneIntl = '201110001986';
+        var email = String(cached && cached.email || '').trim().toLowerCase();
+        var looksLikeAdmin = Boolean(
+          cached && cached.isAdmin === true ||
+          phone === adminPhone ||
+          phone === adminPhoneIntl ||
+          email === 'admin@daleel.com'
+        );
+        if (looksLikeAdmin) localStorage.removeItem('daleel_user');
+      } catch (e) {
+        // Corrupt cached auth data should not be trusted either.
+        try { localStorage.removeItem('daleel_user'); } catch (_) {}
+      }
+    })();
+  </script>
+
   <!-- Google Analytics 4 -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-P9BNJJSHVB"></script>
   <script>
