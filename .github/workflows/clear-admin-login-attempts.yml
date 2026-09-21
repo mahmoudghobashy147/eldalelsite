@@ -1,0 +1,54 @@
+name: Clear Admin Login Attempts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/clear-admin-login-attempts.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clear:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Configure Firebase credentials
+        shell: bash
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/firebase-service-account.json"
+          else
+            echo "::error::Firebase service account secret is missing"
+            exit 1
+          fi
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Clear admin login attempts
+        working-directory: functions
+        run: node clear-admin-login-attempts-once.js
+
+      - name: Cleanup Firebase credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
