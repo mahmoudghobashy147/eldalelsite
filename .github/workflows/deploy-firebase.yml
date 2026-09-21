@@ -55,6 +55,7 @@ jobs:
           npm ci --prefix functions
           node --check functions/index.js
           node --check functions/notification-triggers.js
+          node --check functions/engagement-triggers.js
           node --check functions/main.js
 
       - name: Deploy Functions
@@ -71,6 +72,10 @@ jobs:
       - name: Install rules test dependencies
         if: ${{ inputs.target == 'rules' }}
         run: npm install
+
+      - name: Apply engagement rule hardening
+        if: ${{ inputs.target == 'rules' }}
+        run: node scripts/apply-engagement-rule-patches.js
 
       - name: Re-test Firestore and Storage rules before production deploy
         if: ${{ inputs.target == 'rules' }}
