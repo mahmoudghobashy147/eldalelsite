@@ -14,7 +14,7 @@
     "react-dom": "^18.2.0"
   },
   "scripts": {
-    "patch:safety": "node scripts/apply-safe-patches.js && node scripts/apply-plan-field-patches.js && node scripts/apply-chat-rule-patches.js && node scripts/apply-server-notification-patches.js && node scripts/apply-engagement-counter-patches.js && node scripts/apply-engagement-rule-patches.js && node scripts/apply-review-integrity-patches.js && node scripts/apply-data-integrity-patches.js && node scripts/apply-service-request-security-patches.js && node scripts/apply-member-interaction-security-patches.js && node scripts/apply-marketplace-home-patches.js",
+    "patch:safety": "node scripts/apply-safe-patches.js && node scripts/apply-plan-field-patches.js && node scripts/apply-chat-rule-patches.js && node scripts/apply-server-notification-patches.js && node scripts/apply-engagement-counter-patches.js && node scripts/apply-engagement-rule-patches.js && node scripts/apply-review-integrity-patches.js && node scripts/apply-data-integrity-patches.js && node scripts/apply-service-request-security-patches.js && node scripts/apply-member-interaction-security-patches.js && node scripts/run-marketplace-home-patch.js",
     "prestart": "npm run patch:safety",
     "start": "react-scripts start",
     "prebuild": "npm run patch:safety",
