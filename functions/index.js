@@ -66,10 +66,27 @@ exports.sendPushOnNotification = onDocumentCreated("notifications/{notifId}", as
   const tokens = memberSnap.data().fcmTokens || [];
   if (!tokens.length) return;
 
+  const targetUrl = String(data.url || data.link || "/");
   const message = {
     notification: {
       title: data.title || "الدليل الشامل",
       body: data.body || "",
+    },
+    // data بتوصل مع الرسالة للويب/أندرويد، وبتخلي الـ service worker يعرف يفتح المكان المطلوب
+    data: {
+      url: targetUrl,
+    },
+    // على الويب Firebase يقدر يفتح الرابط ده عند الضغط على الإشعار حتى لو الصفحة مقفولة
+    webpush: {
+      fcmOptions: {
+        link: targetUrl,
+      },
+    },
+    // نفس اسم القناة اللي التطبيق بيعملها في App.jsx عشان إشعارات Android 8+ تظهر بصوت وأولوية صحيحة
+    android: {
+      notification: {
+        channelId: "default_channel",
+      },
     },
     tokens,
   };
