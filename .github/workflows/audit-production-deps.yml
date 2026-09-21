@@ -1,0 +1,63 @@
+name: Audit production dependencies
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/audit-production-deps.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked web dependencies
+        run: npm ci
+
+      - name: Audit web production dependencies
+        shell: bash
+        run: |
+          npm audit --omit=dev --json > "$RUNNER_TEMP/web-audit.json" || true
+          node - "$RUNNER_TEMP/web-audit.json" <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const m = report.metadata?.vulnerabilities || {};
+          console.log(`WEB_PROD_AUDIT total=${m.total||0} critical=${m.critical||0} high=${m.high||0} moderate=${m.moderate||0} low=${m.low||0}`);
+          const vulnerable = Object.entries(report.vulnerabilities || {})
+            .filter(([,v]) => ['critical','high'].includes(v.severity))
+            .map(([name,v]) => `${name}:${v.severity}:${v.isDirect?'direct':'transitive'}`)
+            .sort();
+          for (const row of vulnerable.slice(0, 50)) console.log(`WEB_VULN ${row}`);
+          NODE
+
+      - name: Install locked Functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Audit Functions production dependencies
+        shell: bash
+        run: |
+          cd functions
+          npm audit --omit=dev --json > "$RUNNER_TEMP/functions-audit.json" || true
+          node - "$RUNNER_TEMP/functions-audit.json" <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const m = report.metadata?.vulnerabilities || {};
+          console.log(`FUNCTIONS_PROD_AUDIT total=${m.total||0} critical=${m.critical||0} high=${m.high||0} moderate=${m.moderate||0} low=${m.low||0}`);
+          const vulnerable = Object.entries(report.vulnerabilities || {})
+            .filter(([,v]) => ['critical','high'].includes(v.severity))
+            .map(([name,v]) => `${name}:${v.severity}:${v.isDirect?'direct':'transitive'}`)
+            .sort();
+          for (const row of vulnerable.slice(0, 50)) console.log(`FUNCTIONS_VULN ${row}`);
+          NODE
