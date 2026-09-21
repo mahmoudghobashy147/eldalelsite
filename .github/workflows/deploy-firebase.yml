@@ -74,14 +74,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Apply production rule hardening
+      - name: Apply all current safety patches before rules deploy
         if: ${{ inputs.target == 'rules' }}
-        run: |
-          node scripts/apply-engagement-rule-patches.js
-          node scripts/apply-review-integrity-patches.js
-          node scripts/apply-data-integrity-patches.js
-          node scripts/apply-service-request-security-patches.js
-          node scripts/apply-member-interaction-security-patches.js
+        run: npm run patch:safety
 
       - name: Re-test Firestore and Storage rules before production deploy
         if: ${{ inputs.target == 'rules' }}
