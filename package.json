@@ -15,7 +15,10 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
+    "patch:safety": "node scripts/apply-safe-patches.js",
+    "prestart": "npm run patch:safety",
     "start": "react-scripts start",
+    "prebuild": "npm run patch:safety",
     "build": "react-scripts build",
     "sitemap": "node generate-sitemap.js",
     "test": "react-scripts test",
