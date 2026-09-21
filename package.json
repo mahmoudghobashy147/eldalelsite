@@ -20,6 +20,7 @@
     "start": "react-scripts start",
     "prebuild": "npm run patch:safety",
     "build": "react-scripts build",
+    "postbuild": "node scripts/verify-build-output.js",
     "sitemap": "node generate-sitemap.js",
     "test": "react-scripts test",
     "test:rules": "firebase emulators:exec --only firestore --project demo-daleel-rules \"node scripts/test-firestore-rules.js\"",
