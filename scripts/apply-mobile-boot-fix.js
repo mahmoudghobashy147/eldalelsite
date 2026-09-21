@@ -7,8 +7,8 @@ let changed = false;
 const marker = 'MOBILE_BOOT_FAILSAFE_V1';
 
 if (!src.includes(marker)) {
-  const splashPattern = /const SplashScreen = \(\{ onDone \}\) => \{\s*const \[fade, setFade\] = useState\(false\);\s*useEffect\(\(\) => \{\s*const t1 = setTimeout\(\(\) => setFade\(true\), 2500\);\s*const t2 = setTimeout\(\(\) => onDone\(\), 3000\);\s*return \(\) => \{ clearTimeout\(t1\); clearTimeout\(t2\); \};\s*\}, \[onDone\]\);/;
-  const splashReplacement = `const SplashScreen = ({ onDone }) => {\n  // MOBILE_BOOT_FAILSAFE_V1 — avoid Android/Brave compositor getting stuck on a faded fixed layer.\n  useEffect(() => {\n    const t = setTimeout(() => onDone(), 2200);\n    return () => clearTimeout(t);\n  }, [onDone]);`;
+  const splashPattern = /const SplashScreen = \(\{ onDone \}\) => \{\s*const \[fade, setFade\] = useState\(false\);\s*useEffect\(\(\) => \{\s*const t1 = setTimeout\(\(\) => setFade\(true\), 2500\);\s*const t2 = setTimeout\(\(\) => onDone\(\), 3000\);\s*return \(\) => \{ clearTimeout\(t1\); clearTimeout\(t2\); \};\s*\}, \[\]\);/;
+  const splashReplacement = `const SplashScreen = ({ onDone }) => {\n  // MOBILE_BOOT_FAILSAFE_V1 — avoid Android/Brave compositor getting stuck on a faded fixed layer.\n  useEffect(() => {\n    const t = setTimeout(() => onDone(), 2200);\n    return () => clearTimeout(t);\n  }, []);`;
 
   if (!splashPattern.test(src)) {
     console.error('Could not locate the expected SplashScreen timing block');
