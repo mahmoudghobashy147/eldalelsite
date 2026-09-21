@@ -75,3 +75,5 @@ jobs:
       - name: Cleanup Firebase credential
         if: always()
         run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
+
+# rerun 2026-09-21 admin login diagnosis
