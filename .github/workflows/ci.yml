@@ -34,3 +34,8 @@ jobs:
 
       - name: Check Functions syntax
         run: node --check functions/index.js
+
+      # Compile staged Firestore/Storage rules against local emulators only.
+      # This does NOT deploy or touch the production Firebase project.
+      - name: Validate Firebase security rules
+        run: npx --yes firebase-tools@latest emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "echo Firebase rules compiled successfully"
