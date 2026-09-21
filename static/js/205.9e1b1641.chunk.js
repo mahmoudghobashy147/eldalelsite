@@ -1,0 +1,2 @@
+"use strict";(self.webpackChunkdaleel_shamil_web=self.webpackChunkdaleel_shamil_web||[]).push([[205],{205(e,p,l){const s=(0,l(403).F3)("App",{web:()=>l.e(551).then(l.bind(l,551)).then(e=>new e.AppWeb)});l.d(p,["App",0,s])}}]);
+//# sourceMappingURL=205.9e1b1641.chunk.js.map
