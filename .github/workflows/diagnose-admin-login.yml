@@ -76,4 +76,4 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
 
-# rerun 2026-09-21 after forced secureAdminLogin update
+# rerun 2026-09-21 after secureAdminLogin public invoker deployment
