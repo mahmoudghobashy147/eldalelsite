@@ -1,0 +1,77 @@
+name: Diagnose Admin Login
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/diagnose-admin-login.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+      FIREBASE_PROJECT_ID: eldalel-elshamel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Configure Firebase credentials
+        shell: bash
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/firebase-service-account.json"
+          else
+            echo "::error::Firebase service account secret is missing"
+            exit 1
+          fi
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Test callable endpoint and CORS
+        shell: bash
+        run: |
+          URL="https://us-central1-${FIREBASE_PROJECT_ID}.cloudfunctions.net/secureAdminLogin"
+          echo "CALLABLE_URL=$URL"
+          curl -sS -D "$RUNNER_TEMP/options.headers" -o "$RUNNER_TEMP/options.body" \
+            -X OPTIONS "$URL" \
+            -H 'Origin: https://eldalel-elshamel.online' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type'
+          echo '--- OPTIONS headers ---'
+          grep -Ei 'HTTP/|access-control-|content-type|server:' "$RUNNER_TEMP/options.headers" || true
+
+          POST_CODE=$(curl -sS -D "$RUNNER_TEMP/post.headers" -o "$RUNNER_TEMP/post.body" -w '%{http_code}' \
+            -X POST "$URL" \
+            -H 'Origin: https://eldalel-elshamel.online' \
+            -H 'Content-Type: application/json' \
+            --data '{"data":{"phone":"01000000000","pin":"000000"}}')
+          echo "POST_HTTP=$POST_CODE"
+          echo '--- POST headers ---'
+          grep -Ei 'HTTP/|access-control-|content-type|server:' "$RUNNER_TEMP/post.headers" || true
+          echo '--- POST body ---'
+          cat "$RUNNER_TEMP/post.body"
+
+      - name: Read recent secureAdminLogin logs
+        shell: bash
+        run: npx firebase-tools functions:log --project "$FIREBASE_PROJECT_ID" --only secureAdminLogin --lines 80 || true
+
+      - name: Cleanup Firebase credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
