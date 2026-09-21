@@ -17,7 +17,12 @@ const normalizePhone = (value) => {
   return digits;
 };
 
-const hashPin = (pin, saltHex) => crypto.scryptSync(String(pin), Buffer.from(saltHex, "hex"), 64).toString("hex");
+const normalizePin = (value) => String(value ?? "")
+  .trim()
+  .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+  .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
+
+const hashPin = (pin, saltHex) => crypto.scryptSync(normalizePin(pin), Buffer.from(saltHex, "hex"), 64).toString("hex");
 
 async function requireAdmin(uid) {
   if (!uid) throw new HttpsError("unauthenticated", "لازم تكون مسجل دخول");
@@ -67,9 +72,9 @@ exports.migrateAdminAuth = onCall(async (request) => {
     return { success: true, alreadyMigrated: true };
   }
 
-  const suppliedPin = String(request.data?.pin || "");
+  const suppliedPin = normalizePin(request.data?.pin);
   const appData = appSnap.exists ? appSnap.data() : {};
-  const legacyPin = String(appData.adminPin || "");
+  const legacyPin = normalizePin(appData.adminPin);
   if (!legacyPin || !suppliedPin || suppliedPin !== legacyPin) {
     throw new HttpsError("permission-denied", "تعذر تأكيد بيانات الأدمن للترحيل");
   }
@@ -104,7 +109,7 @@ exports.migrateAdminAuth = onCall(async (request) => {
 // ─────────────────────────────────────────────
 exports.secureAdminLogin = onCall(async (request) => {
   const phone = normalizePhone(request.data?.phone);
-  const pin = String(request.data?.pin || "");
+  const pin = normalizePin(request.data?.pin);
   if (!phone || pin.length < 4 || pin.length > 64) {
     throw new HttpsError("invalid-argument", "بيانات الدخول غير صحيحة");
   }
@@ -158,7 +163,7 @@ exports.secureAdminLogin = onCall(async (request) => {
 exports.changeAdminPin = onCall(async (request) => {
   const uid = request.auth?.uid;
   await requireAdmin(uid);
-  const newPin = String(request.data?.newPin || "");
+  const newPin = normalizePin(request.data?.newPin);
   if (newPin.length < 6 || newPin.length > 64) {
     throw new HttpsError("invalid-argument", "الرقم السري الجديد لازم يكون 6 خانات على الأقل");
   }
