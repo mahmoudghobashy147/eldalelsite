@@ -1,10 +1,11 @@
-name: Diagnose Admin Login
+name: Repair and Diagnose Admin Login
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
+      - functions/repair-admin-auth-once.js
       - functions/admin-login-diagnostic.js
       - .github/workflows/admin-login-diagnostic.yml
 
@@ -12,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  diagnose:
+  repair-and-diagnose:
     runs-on: ubuntu-latest
     env:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
@@ -46,7 +47,11 @@ jobs:
           chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
 
-      - name: Diagnose admin login state
+      - name: Repair legacy admin auth once
+        working-directory: functions
+        run: node repair-admin-auth-once.js
+
+      - name: Verify repaired admin login state
         working-directory: functions
         run: node admin-login-diagnostic.js
 
