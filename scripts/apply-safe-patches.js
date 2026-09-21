@@ -149,7 +149,7 @@ replaceOnce(
           } else { throw signInErr; }
         }
         // نتأكد إن مستند العضو الخاص بالأدمن معلّم isAdmin:true (عشان قاعدة isAdmin() في Firestore تشتغل)
-        await setDoc(doc(db,"members",cred.user.uid), { isAdmin:true, name:"الأدمن", phone:cfg.adminPhone||form.phone, type:"vip", status:"approved" }, { merge:true });
+        await setDoc(doc(db,"members",cred.user.uid), { isAdmin:true, name:"الأدمن", phone: cfg.adminPhone||form.phone, type:"vip", status:"approved" }, { merge:true });
         const adminUser = { uid:cred.user.uid, email:adminEmail, phone:cfg.adminPhone||form.phone, displayName:"الأدمن", isAdmin:true };`,
 `        const cred = await DB.signIn(adminEmail, authPass);
         const adminMemberSnap = await getDoc(doc(db, "members", cred.user.uid));
