@@ -6,4 +6,5 @@ module.exports = {
   ...require("./notification-triggers"),
   ...require("./engagement-triggers"),
   ...require("./service-requests"),
+  ...require("./member-interactions"),
 };
