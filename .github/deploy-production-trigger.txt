@@ -1,1 +1,1 @@
-deploy 2026-09-21 16:52 Africa-Cairo mobile-splash-blank-screen-fix
+deploy 2026-09-21 restore-home-posts-ads
