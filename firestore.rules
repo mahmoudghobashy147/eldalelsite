@@ -1,0 +1,288 @@
+rules_version = '2';
+
+// ============================================================
+// الدليل الشامل — Firestore Rules (STAGED / NOT DEPLOYED YET)
+// ============================================================
+// مهم: الملف ده متعمد لسه مش متوصل في firebase.json.
+// لازم يتجرب على Emulator/بيئة اختبار قبل نشره على الإنتاج.
+//
+// ملاحظة أمان مهمة:
+// config/appSettings مقروء من التطبيق العام. أي adminPin أو سر مخزن داخله
+// ليس سراً حقيقياً حتى لو القواعد أدناه تمنع الكتابة عليه.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function self(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function memberDoc(uid) {
+      return /databases/$(database)/documents/members/$(uid);
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(memberDoc(request.auth.uid))
+        && get(memberDoc(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function memberProtectedFieldsUnchanged() {
+      return request.resource.data.isAdmin == resource.data.isAdmin
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.verified == resource.data.verified
+        && request.resource.data.subscriptionStart == resource.data.subscriptionStart
+        && request.resource.data.subscriptionEnd == resource.data.subscriptionEnd
+        && request.resource.data.subscriptionDurationDays == resource.data.subscriptionDurationDays;
+    }
+
+    function ownPlanChangeAllowed() {
+      // العضو يقدر يختار الباقة وهو Pending فقط؛ بعد الاعتماد الإدارة هي اللي تغيّرها.
+      return resource.data.status != 'approved'
+        || request.resource.data.plan == resource.data.plan;
+    }
+
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // ----------------------------------------------------------
+    // MEMBERS
+    // ----------------------------------------------------------
+    match /members/{memberId} {
+      // الملفات المعتمدة عامة، وصاحب الحساب/الأدمن يقدر يشوف حسابه حتى لو Pending.
+      allow get, list: if resource.data.status == 'approved' || self(memberId) || isAdmin();
+
+      // إنشاء الحساب لنفس UID فقط، وممنوع يخلق نفسه Admin أو Approved.
+      allow create: if self(memberId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.isAdmin != true
+        && request.resource.data.status != 'approved'
+        && request.resource.data.status != 'rejected';
+
+      // صاحب الحساب يعدل بياناته العادية فقط مع بقاء الحقول الإدارية ثابتة.
+      allow update: if isAdmin()
+        || (self(memberId)
+          && memberProtectedFieldsUnchanged()
+          && ownPlanChangeAllowed());
+
+      allow delete: if isAdmin();
+
+      // تقييمات العضو
+      match /reviews/{reviewId} {
+        allow read: if true;
+        // الكود الحالي لا يكتب authorId داخل التقييم؛ لذلك دي حماية أولية فقط.
+        // لاحقاً الأفضل إضافة authorId ومنع أكثر من تقييم لنفس العضو.
+        allow create: if signedIn()
+          && request.resource.data.rating is number
+          && request.resource.data.rating >= 1
+          && request.resource.data.rating <= 5
+          && request.resource.data.text is string;
+        allow update, delete: if isAdmin();
+      }
+
+      // المحفوظات — خاصة بصاحب الحساب
+      match /saved/{savedMemberId} {
+        allow read, create, update, delete: if self(memberId) || isAdmin();
+      }
+
+      // المتابعون
+      match /followers/{followerId} {
+        allow read: if true;
+        allow create: if signedIn()
+          && request.auth.uid == followerId
+          && request.resource.data.followerId == request.auth.uid;
+        allow delete: if (signedIn() && request.auth.uid == followerId) || isAdmin();
+        allow update: if false;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // POSTS + COMMENTS
+    // ----------------------------------------------------------
+    match /posts/{postId} {
+      allow read: if true;
+
+      allow create: if signedIn()
+        && request.resource.data.authorId == request.auth.uid;
+
+      // صاحب المنشور/الأدمن يعدل بحرية.
+      // باقي المستخدمين نسمح لهم فقط بحقول التفاعل التي يعدلها الكود الحالي.
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.authorId == request.auth.uid)
+        || (signedIn() && onlyChanged(['likedBy', 'likes']))
+        || (signedIn() && onlyChanged(['comments']))
+        || (signedIn() && onlyChanged(['shares']));
+
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.authorId == request.auth.uid);
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if signedIn()
+          && request.resource.data.authorId == request.auth.uid;
+        allow update: if signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likes']);
+        allow delete: if isAdmin()
+          || (signedIn() && resource.data.authorId == request.auth.uid);
+      }
+    }
+
+    // ----------------------------------------------------------
+    // DIRECT MESSAGES
+    // ----------------------------------------------------------
+    match /chats/{chatId} {
+      allow read: if isAdmin()
+        || (signedIn() && request.auth.uid in resource.data.users);
+
+      allow create: if signedIn()
+        && request.resource.data.users is list
+        && request.auth.uid in request.resource.data.users;
+
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid in resource.data.users
+          && request.auth.uid in request.resource.data.users);
+
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        function parentChat() {
+          return get(/databases/$(database)/documents/chats/$(chatId));
+        }
+
+        allow read: if isAdmin()
+          || (signedIn() && request.auth.uid in parentChat().data.users);
+
+        allow create: if signedIn()
+          && request.resource.data.senderId == request.auth.uid
+          && request.auth.uid in parentChat().data.users;
+
+        allow update: if signedIn()
+          && request.auth.uid in parentChat().data.users
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ----------------------------------------------------------
+    // QUICK SERVICE REQUESTS
+    // ----------------------------------------------------------
+    match /serviceRequests/{requestId} {
+      // الزائر ممكن يبعت طلب سريع من غير حساب.
+      allow create: if request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1500;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------
+    // JOBS
+    // ----------------------------------------------------------
+    match /jobs/{jobId} {
+      allow read: if true;
+
+      allow create: if signedIn()
+        && request.resource.data.postedBy == request.auth.uid;
+
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.postedBy == request.auth.uid)
+        // التقديم على الوظيفة يزوّد applicants فقط في الكود الحالي.
+        || (signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['applicants'])
+          && request.resource.data.applicants == resource.data.applicants + 1);
+
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.postedBy == request.auth.uid);
+    }
+
+    match /jobApplications/{applicationId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending';
+
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid)
+        || (signedIn()
+          && exists(/databases/$(database)/documents/jobs/$(resource.data.jobId))
+          && get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.postedBy == request.auth.uid);
+
+      allow update, delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------
+    // NOTIFICATIONS
+    // ----------------------------------------------------------
+    match /notifications/{notificationId} {
+      // الشخص يشوف الإشعارات الموجهة له والإشعارات العامة فقط.
+      allow read: if isAdmin()
+        || (signedIn()
+          && (resource.data.recipientId == request.auth.uid
+            || resource.data.recipientId == null));
+
+      // الإشعار العام للأدمن فقط.
+      // الإشعار الشخصي مسموح لمستخدم مسجل للتوافق مع الرسائل/المتابعة/زيارة البروفايل الحالية.
+      // لاحقاً الأفضل نقل إنشاء الإشعارات بالكامل إلى Cloud Functions.
+      allow create: if isAdmin()
+        || (signedIn()
+          && request.resource.data.recipientId != null
+          && request.resource.data.recipientId is string);
+
+      // المستخدم يقدر يعلّم إشعاره كمقروء فقط.
+      allow update: if isAdmin()
+        || (signedIn()
+          && resource.data.recipientId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']))
+        || (signedIn()
+          && resource.data.recipientId == null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']));
+
+      allow delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------
+    // PAYMENTS / ADS
+    // ----------------------------------------------------------
+    match /payments/{paymentId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /ads/{adId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------
+    // APP CONFIG + SITE STATS
+    // ----------------------------------------------------------
+    match /config/appSettings {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /config/stats {
+      allow read: if true;
+
+      // عداد الزيارات الحالي بيتحدث من العميل، فنسمح فقط بإنشائه بالقيمة الأساسية
+      // أو زيادة totalVisits بمقدار 1 بدون تعديل أي حقل آخر.
+      allow create: if request.resource.data.keys().hasOnly(['totalVisits'])
+        && request.resource.data.totalVisits is number
+        && request.resource.data.totalVisits >= 10000;
+
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalVisits'])
+        && request.resource.data.totalVisits == resource.data.totalVisits + 1;
+
+      allow delete: if isAdmin();
+    }
+
+    // أي Collection غير مذكورة فوق مقفولة افتراضياً.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
