@@ -16,15 +16,43 @@ if (!text.includes('async function downloadCatalogQr')) {
   text = text.replace(anchor, addition);
 }
 
+if (!text.includes('const productUrl = (productId)')) {
+  const anchor = 'const catalogUrl = (businessId) => {\n  const origin = typeof window !== "undefined" ? window.location.origin : "https://eldalel-elshamel.online";\n  return `${origin}/?catalog=business&businessId=${encodeURIComponent(businessId)}`;\n};\n';
+  const replacement = `${anchor}const productUrl = (productId) => {\n  const origin = typeof window !== "undefined" ? window.location.origin : "https://eldalel-elshamel.online";\n  return \`\${origin}/?catalog=product&productId=\${encodeURIComponent(productId)}\`;\n};\n`;
+  replaceOnce(anchor, replacement, 'product URL helper');
+}
+
 // Remove a no-longer-needed local color object from the homepage teaser.
 text = text.replace(
   'export function CatalogHomeSection({db,darkMode,onOpen}){\n  const c=cardColors(darkMode), mobile=useMobile();',
   'export function CatalogHomeSection({db,darkMode,onOpen}){\n  const mobile=useMobile();'
 );
 
+if (!text.includes('const shareUrl=productUrl(p.id);')) {
+  const anchor = '  const share=async()=>{\n    const data={title:p.name,text:`${p.name}${business?.name?` - ${business.name}`:""}`,url:window.location.href};\n    if(navigator.share) await navigator.share(data).catch(()=>{});\n    else { await navigator.clipboard?.writeText(window.location.href); alert("تم نسخ رابط المنتج"); }\n  };';
+  const replacement = '  const share=async()=>{\n    const shareUrl=productUrl(p.id);\n    const data={title:p.name,text:`${p.name}${business?.name?` - ${business.name}`:""}`,url:shareUrl};\n    if(navigator.share) await navigator.share(data).catch(()=>{});\n    else { await navigator.clipboard?.writeText(shareUrl); alert("تم نسخ رابط المنتج"); }\n  };';
+  replaceOnce(anchor, replacement, 'product share URL');
+}
+
+if (!text.includes('const pid=q.get("productId")')) {
+  const anchor = '        const q=new URLSearchParams(window.location.search), bid=q.get("businessId");\n        if(q.get("catalog")==="business"&&bid){\n          const found=b.find(x=>x.id===bid);\n          if(found) setSelectedBusiness(found);\n          else try{const s=await getDoc(doc(db,"catalogBusinesses",bid));if(s.exists()&&s.data().active===true)setSelectedBusiness({id:s.id,...s.data()});}catch{}\n        }';
+  const replacement = '        const q=new URLSearchParams(window.location.search), type=q.get("catalog"), bid=q.get("businessId"), pid=q.get("productId");\n        if(type==="business"&&bid){\n          const found=b.find(x=>x.id===bid);\n          if(found) setSelectedBusiness(found);\n          else try{const s=await getDoc(doc(db,"catalogBusinesses",bid));if(s.exists()&&s.data().active===true)setSelectedBusiness({id:s.id,...s.data()});}catch{}\n        } else if(type==="product"&&pid){\n          const found=p.find(x=>x.id===pid);\n          if(found) setSelectedProduct(found);\n          else try{const s=await getDoc(doc(db,"catalogProducts",pid));if(s.exists()&&s.data().active===true)setSelectedProduct({id:s.id,...s.data()});}catch{}\n        }';
+  replaceOnce(anchor, replacement, 'product deep-link loader');
+}
+
+if (!text.includes('const openProduct=p=>')) {
+  const anchor = '  const openBusiness=b=>{setSelectedProduct(null);setSelectedBusiness(b);window.history.pushState({catalog:true},"",`?catalog=business&businessId=${encodeURIComponent(b.id)}`);window.scrollTo(0,0);};\n  const back=()=>{setSelectedBusiness(null);setSelectedProduct(null);window.history.replaceState({},"",window.location.pathname);window.scrollTo(0,0);};';
+  const replacement = '  const openBusiness=b=>{setSelectedProduct(null);setSelectedBusiness(b);window.history.pushState({catalog:true},"",`?catalog=business&businessId=${encodeURIComponent(b.id)}`);window.scrollTo(0,0);};\n  const openProduct=p=>{setSelectedProduct(p);window.history.pushState({catalog:true},"",`?catalog=product&productId=${encodeURIComponent(p.id)}`);window.scrollTo(0,0);};\n  const closeProduct=()=>{setSelectedProduct(null);if(selectedBusiness)window.history.replaceState({catalog:true},"",`?catalog=business&businessId=${encodeURIComponent(selectedBusiness.id)}`);else window.history.replaceState({catalog:true},"",`?catalog=1`);window.scrollTo(0,0);};\n  const back=()=>{setSelectedBusiness(null);setSelectedProduct(null);window.history.replaceState({},"",window.location.pathname);window.scrollTo(0,0);};';
+  replaceOnce(anchor, replacement, 'product open/back handlers');
+}
+
+text = text.replace('onBack={()=>setSelectedProduct(null)} darkMode={darkMode}', 'onBack={closeProduct} darkMode={darkMode}');
+text = text.replace('onProduct={setSelectedProduct} darkMode={darkMode}', 'onProduct={openProduct} darkMode={darkMode}');
+text = text.replace(/onOpen=\{setSelectedProduct\}/g, 'onOpen={openProduct}');
+
 if (!text.includes('title="أحدث المنتجات والعروض"')) {
   const anchor = '<SectionTitle darkMode={darkMode} title="ابحث وفلتر المنتجات" sub="يمكنك الوصول للمنتج نفسه بالمواصفات"/>';
-  const block = `<SectionTitle darkMode={darkMode} title="أحدث المنتجات والعروض" sub="أحدث ما تم إضافته إلى الكتالوج"/>\n        {latest.length?<div style={{display:"grid",gridTemplateColumns:\`repeat(\${mobile?2:4},minmax(0,1fr))\`,gap:11,marginBottom:28}}>{latest.map(p=><ProductCard key={p.id} p={p} business={businesses.find(b=>b.id===p.businessId)} category={cats.find(x=>x.id===p.categoryId)} onOpen={setSelectedProduct} darkMode={darkMode}/>)}</div>:<div style={{padding:20,color:c.sub,textAlign:"center",marginBottom:20}}>سيتم عرض أحدث المنتجات هنا بعد إضافتها من الإدارة</div>}\n        ${anchor}`;
+  const block = `<SectionTitle darkMode={darkMode} title="أحدث المنتجات والعروض" sub="أحدث ما تم إضافته إلى الكتالوج"/>\n        {latest.length?<div style={{display:"grid",gridTemplateColumns:\`repeat(\${mobile?2:4},minmax(0,1fr))\`,gap:11,marginBottom:28}}>{latest.map(p=><ProductCard key={p.id} p={p} business={businesses.find(b=>b.id===p.businessId)} category={cats.find(x=>x.id===p.categoryId)} onOpen={openProduct} darkMode={darkMode}/>)}</div>:<div style={{padding:20,color:c.sub,textAlign:"center",marginBottom:20}}>سيتم عرض أحدث المنتجات هنا بعد إضافتها من الإدارة</div>}\n        ${anchor}`;
   replaceOnce(anchor, block, 'latest products section');
 }
 
@@ -35,4 +63,4 @@ if (!text.includes('تحميل QR')) {
 }
 
 fs.writeFileSync(FILE, text);
-console.log('✅ Catalog QR and latest-product enhancements applied');
+console.log('✅ Catalog QR, product sharing, and latest-product enhancements applied');
