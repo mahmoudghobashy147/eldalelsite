@@ -56,7 +56,7 @@ for (const [oldText, newText, label] of [
           && request.resource.data.followerId == request.auth.uid;`,
 `        allow create: if signedIn()
           && request.auth.uid == followerId
-          && followingId != request.auth.uid
+          && memberId != request.auth.uid
           && request.resource.data.followerId == request.auth.uid;`,
     "block self follow documents",
   ],
