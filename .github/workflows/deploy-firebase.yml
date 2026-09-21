@@ -73,11 +73,12 @@ jobs:
         if: ${{ inputs.target == 'rules' }}
         run: npm install
 
-      - name: Apply engagement and review rule hardening
+      - name: Apply production rule hardening
         if: ${{ inputs.target == 'rules' }}
         run: |
           node scripts/apply-engagement-rule-patches.js
           node scripts/apply-review-integrity-patches.js
+          node scripts/apply-data-integrity-patches.js
 
       - name: Re-test Firestore and Storage rules before production deploy
         if: ${{ inputs.target == 'rules' }}
