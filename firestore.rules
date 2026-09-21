@@ -3,8 +3,7 @@ rules_version = '2';
 // ============================================================
 // الدليل الشامل — Firestore Rules (STAGED / NOT DEPLOYED YET)
 // ============================================================
-// مهم: الملف ده متعمد لسه مش متوصل في firebase.json.
-// لازم يتجرب على Emulator/بيئة اختبار قبل نشره على الإنتاج.
+// راجع واختبر الملف على Emulator قبل نشره على الإنتاج.
 // ============================================================
 
 service cloud.firestore {
@@ -25,21 +24,33 @@ service cloud.firestore {
     function isAdmin() {
       return signedIn()
         && exists(memberDoc(request.auth.uid))
-        && ('isAdmin' in get(memberDoc(request.auth.uid)).data)
-        && get(memberDoc(request.auth.uid)).data.isAdmin == true;
+        && get(memberDoc(request.auth.uid)).data.get('isAdmin', false) == true;
+    }
+
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
 
     function memberProtectedFieldsUnchanged() {
       return request.resource.data.diff(resource.data).affectedKeys().hasNone([
+        'uid',
         'isAdmin',
         'status',
         'verified',
+        'createdAt',
         'subscriptionStart',
         'subscriptionEnd',
         'subscriptionDurationDays',
+        'subscriptionRenewedAt',
         'approvedAt',
         'rejectedAt',
         'subscriptionCancelledAt'
+      ]);
+    }
+
+    function memberEngagementFieldsUnchanged() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasNone([
+        'views', 'calls', 'waMessages', 'saves', 'followersCount', 'rating', 'reviews'
       ]);
     }
 
@@ -50,8 +61,28 @@ service cloud.firestore {
         || request.resource.data.plan == resource.data.plan;
     }
 
-    function onlyChanged(keys) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    function plusOne(field) {
+      return onlyChanged([field])
+        && request.resource.data.get(field, -1) is number
+        && request.resource.data.get(field, -1) == resource.data.get(field, 0) + 1;
+    }
+
+    function plusOrMinusOneNonNegative(field) {
+      return onlyChanged([field])
+        && request.resource.data.get(field, -1) is number
+        && request.resource.data.get(field, -1) >= 0
+        && (
+          request.resource.data.get(field, -1) == resource.data.get(field, 0) + 1
+          || request.resource.data.get(field, -1) == resource.data.get(field, 0) - 1
+        );
+    }
+
+    function reviewAggregateUpdate() {
+      return onlyChanged(['reviews', 'rating'])
+        && request.resource.data.get('reviews', -1) == resource.data.get('reviews', 0) + 1
+        && request.resource.data.get('rating', 0) is number
+        && request.resource.data.get('rating', 0) >= 1
+        && request.resource.data.get('rating', 0) <= 5;
     }
 
     // ----------------------------------------------------------
@@ -59,7 +90,7 @@ service cloud.firestore {
     // ----------------------------------------------------------
     match /members/{memberId} {
       // الملفات المعتمدة عامة، وصاحب الحساب/الأدمن يقدر يشوف حسابه حتى لو Pending.
-      allow get, list: if (('status' in resource.data) && resource.data.status == 'approved') || self(memberId) || isAdmin();
+      allow get, list: if (resource.data.get('status', '') == 'approved') || self(memberId) || isAdmin();
 
       // إنشاء الحساب لنفس UID فقط، وممنوع يخلق نفسه Admin/Verified أو يخلق اشتراك معتمد.
       allow create: if self(memberId)
@@ -72,15 +103,27 @@ service cloud.firestore {
           'subscriptionStart',
           'subscriptionEnd',
           'subscriptionDurationDays',
+          'subscriptionRenewedAt',
           'subscriptionCancelledAt'
         ])
         && (!('status' in request.resource.data) || request.resource.data.status == 'pending');
 
-      // صاحب الحساب يعدل بياناته العادية فقط مع بقاء الحقول الإدارية ثابتة.
+      // الأدمن يقدر يعدل كل شيء.
+      // صاحب الحساب يعدل بياناته العادية فقط، بدون العبث بالحقول الإدارية أو الإحصائيات.
+      // عدادات التفاعل المشتركة لها تحديثات محددة جدًا حتى يفضل السلوك الحالي للتطبيق شغال.
       allow update: if isAdmin()
         || (self(memberId)
           && memberProtectedFieldsUnchanged()
-          && ownPlanChangeAllowed());
+          && memberEngagementFieldsUnchanged()
+          && ownPlanChangeAllowed())
+        // مشاهدة/اتصال/واتساب ممكن يحصلوا من زائر غير مسجل، لكن الزيادة لازم تكون +1 فقط.
+        || plusOne('views')
+        || plusOne('calls')
+        || plusOne('waMessages')
+        // الحفظ والمتابعة والتقييم تتطلب مستخدم مسجل.
+        || (signedIn() && plusOrMinusOneNonNegative('saves'))
+        || (signedIn() && plusOrMinusOneNonNegative('followersCount'))
+        || (signedIn() && reviewAggregateUpdate());
 
       allow delete: if isAdmin();
 
@@ -91,7 +134,8 @@ service cloud.firestore {
           && request.resource.data.rating is number
           && request.resource.data.rating >= 1
           && request.resource.data.rating <= 5
-          && request.resource.data.text is string;
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 2000;
         allow update, delete: if isAdmin();
       }
 
@@ -149,11 +193,15 @@ service cloud.firestore {
 
       allow create: if signedIn()
         && request.resource.data.users is list
+        && request.resource.data.users.size() == 2
         && request.auth.uid in request.resource.data.users;
 
+      // أطراف المحادثة يقدروا يحدثوا آخر رسالة/وقت فقط، لكن ما يغيروش قائمة المشاركين.
       allow update: if isAdmin()
-        || (signedIn() && request.auth.uid in resource.data.users
-          && request.auth.uid in request.resource.data.users);
+        || (signedIn()
+          && request.auth.uid in resource.data.users
+          && request.resource.data.users == resource.data.users
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastTime', 'updatedAt']));
 
       allow delete: if isAdmin();
 
@@ -200,7 +248,7 @@ service cloud.firestore {
         || (signedIn() && resource.data.postedBy == request.auth.uid)
         || (signedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['applicants'])
-          && request.resource.data.applicants == resource.data.applicants + 1);
+          && request.resource.data.applicants == resource.data.get('applicants', 0) + 1);
 
       allow delete: if isAdmin()
         || (signedIn() && resource.data.postedBy == request.auth.uid);
@@ -217,7 +265,13 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/jobs/$(resource.data.jobId))
           && get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.postedBy == request.auth.uid);
 
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (signedIn()
+          && exists(/databases/$(database)/documents/jobs/$(resource.data.jobId))
+          && get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.postedBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
     }
 
     // ----------------------------------------------------------
@@ -227,25 +281,22 @@ service cloud.firestore {
       // الشخص يشوف الإشعارات الموجهة له والإشعارات العامة فقط.
       allow read: if isAdmin()
         || (signedIn()
-          && (('recipientId' in resource.data && resource.data.recipientId == request.auth.uid)
-            || !('recipientId' in resource.data)
-            || resource.data.recipientId == null));
+          && ((resource.data.get('recipientId', null) == request.auth.uid)
+            || resource.data.get('recipientId', null) == null));
 
       // الإشعار العام للأدمن فقط.
       // الإشعار الشخصي مسموح لمستخدم مسجل للتوافق مع الرسائل/المتابعة/زيارة البروفايل الحالية.
       allow create: if isAdmin()
         || (signedIn()
-          && ('recipientId' in request.resource.data)
-          && request.resource.data.recipientId is string);
+          && request.resource.data.get('recipientId', null) is string);
 
       // المستخدم يقدر يعلّم إشعاره كمقروء فقط.
       allow update: if isAdmin()
         || (signedIn()
-          && ('recipientId' in resource.data)
-          && resource.data.recipientId == request.auth.uid
+          && resource.data.get('recipientId', null) == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']))
         || (signedIn()
-          && (!('recipientId' in resource.data) || resource.data.recipientId == null)
+          && resource.data.get('recipientId', null) == null
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']));
 
       allow delete: if isAdmin();
@@ -284,8 +335,8 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // config/adminSecrets و adminLoginAttempts وأي Collection غير مذكورة فوق
-    // مقفولة تمامًا للعميل. Cloud Functions عبر Admin SDK تتجاوز القواعد دي بأمان.
+    // privateConfig/adminAuth وأي Collection غير مذكورة فوق مقفولة تمامًا للعميل.
+    // Cloud Functions عبر Admin SDK تتجاوز القواعد دي بأمان.
     match /{document=**} {
       allow read, write: if false;
     }
