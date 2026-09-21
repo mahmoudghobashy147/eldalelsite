@@ -40,6 +40,9 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Install locked Firebase CLI and test dependencies
+        run: npm ci
+
       - name: Decode Firebase service account
         shell: bash
         run: |
@@ -61,7 +64,7 @@ jobs:
 
       - name: Deploy Functions
         if: ${{ inputs.target == 'functions' }}
-        run: npx --prefix . firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only functions --non-interactive
+        run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only functions --non-interactive
 
       - name: Setup Java 21 for rules emulator
         if: ${{ inputs.target == 'rules' }}
@@ -69,10 +72,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-
-      - name: Install locked rules test dependencies
-        if: ${{ inputs.target == 'rules' }}
-        run: npm ci
 
       - name: Apply production rule hardening
         if: ${{ inputs.target == 'rules' }}
