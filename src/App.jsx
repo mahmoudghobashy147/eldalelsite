@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from "react";
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail, signOut as fbSignOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, signInWithCustomToken, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail, signOut as fbSignOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import { getFirestore, collection, query, where, orderBy, limit, startAfter, getDocs, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, onSnapshot, runTransaction } from "firebase/firestore";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -117,7 +117,7 @@ const DEFAULT_CONFIG = {
   // كان هنا الرقم السري الحقيقي بتاع الأدمن مكتوب صريح في الكود، وده معناه إنه ظاهر لأي حد يفتح الموقع
   // ويشوف كود الـ JS (بنفس الطريقة اللي GitHub لقى بيها الـ Firebase key). سيبناه فاضي عشان النظام
   // "يفشل بأمان" (fail-closed) لحد ما يتحمّل الإعداد الحقيقي من Firestore. **لازم تغيّر الرقم السري
-  // فعليًا من لوحة إعدادات الأدمن حالًا**، لأن القيمة القديمة "bebo112233aA@" بقت متسربة ومعروفة.
+  // تم حذف أي قيمة اعتماد تاريخية من النسخة المبنية — غيّر أي سر قديم ظهر في Git history.
   adminPin: "",
   adminEmail: "admin@daleel.com",
   appName: "الدليل الشامل",
@@ -139,7 +139,7 @@ const ConfigProvider = ({ children }) => {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   useEffect(() => {
     const unsub = onSnapshot(doc(db,"config","appSettings"), snap => {
-      if (snap.exists()) setConfig(p => ({ ...DEFAULT_CONFIG, ...p, ...snap.data() }));
+      if (snap.exists()) setConfig({ ...DEFAULT_CONFIG, ...snap.data() });
     }, () => {});
     return unsub;
   }, []);
@@ -666,20 +666,21 @@ const DB = {
   },
   async addReview(memberId, review) {
     try {
-      await addDoc(collection(db,`members/${memberId}/reviews`), { ...review, time: new Date() });
-      // كان بيزود عدد المراجعات بس من غير ما يعيد حساب معدل النجوم خالص — فتقييم كل الأعضاء
-      // كان فعليًا مجمد. بنستخدم transaction عشان لو اتنين قيّموا في نفس اللحظة الحساب يفضل مضبوط
-      await runTransaction(db, async (tx) => {
-        const ref = doc(db,"members",memberId);
-        const snap = await tx.get(ref);
-        const data = snap.data() || {};
-        const oldCount = data.reviews || 0;
-        const oldRating = data.rating || 0;
-        const newCount = oldCount + 1;
-        const newRating = ((oldRating * oldCount) + (Number(review.rating)||0)) / newCount;
-        tx.update(ref, { reviews: newCount, rating: Math.round(newRating*10)/10 });
+      const reviewerId = String(review?.reviewerId || auth.currentUser?.uid || "");
+      if (!reviewerId || reviewerId === String(memberId)) return false;
+      // reviewId = Firebase UID guarantees one review per account for this member.
+      // A second write becomes an update and Firestore Rules reject it.
+      await setDoc(doc(db, `members/${memberId}/reviews`, reviewerId), {
+        ...review,
+        reviewerId,
+        time: new Date(),
       });
-    } catch(e) { console.error("addReview error:", e); }
+      // rating/reviews aggregates are updated by a trusted Cloud Function trigger.
+      return true;
+    } catch(e) {
+      console.error("addReview error:", e);
+      return false;
+    }
   },
   async getPosts(cursor = null) {
     try {
@@ -812,6 +813,14 @@ const DB = {
   async sendMessage(userId1, userId2, senderName, message) {
     try {
       const chatId = [userId1, userId2].sort().join("_");
+      // Create/update the parent chat first so Firestore Rules can verify that
+      // the sender is a participant even on the very first message.
+      await setDoc(doc(db,"chats",chatId), {
+        users: [userId1, userId2],
+        lastMessage: message,
+        lastTime: new Date(),
+        updatedAt: new Date()
+      }, { merge: true });
       const docRef = await addDoc(collection(db,`chats/${chatId}/messages`), {
         senderId: userId1,
         senderName,
@@ -819,21 +828,7 @@ const DB = {
         time: new Date(),
         read: false
       });
-      // Update chat metadata
-      await setDoc(doc(db,"chats",chatId), {
-        users: [userId1, userId2],
-        lastMessage: message,
-        lastTime: new Date(),
-        updatedAt: new Date()
-      }, { merge: true });
-      // إشعار للطرف التاني — كان ناقص خالص قبل كده، يعني محدش كان بياخد إشعار برسالة جداده
-      await addDoc(collection(db,"notifications"), {
-        recipientId: userId2,
-        title: senderName,
-        body: message.length>60 ? message.slice(0,60)+"…" : message,
-        icon: "💬", color: "#3B82F6",
-        time: new Date(), read: false,
-      }).catch(()=>{});
+      // Notification is generated server-side by the chat-message Firestore trigger.
       return { id: docRef.id, senderId: userId1, senderName, message, time: new Date(), read: false };
     } catch(e) {
       console.error("sendMessage error:", e);
@@ -905,17 +900,15 @@ const DB = {
   // (مثلاً من لوحة الإدارة)، وده منفصل تمامًا عن مجموعة "jobs" (وظائف توظيف)
   async postServiceRequest(data) {
     try {
-      const ref = await addDoc(collection(db,"serviceRequests"), {
+      const createServiceRequest = httpsCallable(functions, "createServiceRequest");
+      const response = await createServiceRequest({
         text: data.text,
         gov: data.gov || "",
         city: data.city || "",
-        userId: data.userId || null,
         userName: data.userName || "",
         phone: data.phone || "",
-        status: "open",
-        createdAt: new Date(),
       });
-      return ref.id;
+      return response.data?.id || "";
     } catch(e) {
       console.error("postServiceRequest error:", e);
       throw new Error("فشل إرسال الطلب");
@@ -961,9 +954,11 @@ const DB = {
   },
   async applyJob(jobId, userId, data) {
     try {
-      await addDoc(collection(db,"jobApplications"), { jobId, userId, ...data, status:"pending", appliedAt: new Date() });
-      // بنزوّد عداد المتقدمين على الوظيفة نفسها — كان بيفضل 0 للأبد قبل كده
-      await updateDoc(doc(db,"jobs",jobId), { applicants: increment(1) }).catch(()=>{});
+      // Deterministic id prevents duplicate applications from the same user for the same job.
+      await setDoc(doc(db,"jobApplications", `${jobId}_${userId}`), {
+        ...data, jobId, userId, status:"pending", appliedAt: new Date()
+      });
+      // applicants aggregate is updated by a trusted Cloud Function trigger.
     } catch(e) { throw new Error("فشل إرسال الطلب"); }
   },
   // كل المتقدمين على وظيفة معيّنة — يستخدمها صاحب الوظيفة أو الأدمن بس
@@ -1115,13 +1110,13 @@ const DB = {
   async saveMember(userId, memberId) {
     try {
       await setDoc(doc(db,`members/${userId}/saved`,memberId), { memberId, savedAt: new Date() });
-      await updateDoc(doc(db,"members",memberId), { saves: increment(1) });
+      // saves aggregate is updated by a trusted Cloud Function trigger.
     } catch(e) { console.log("saveMember error:", e); }
   },
   async removeSavedMember(userId, memberId) {
     try {
       await deleteDoc(doc(db,`members/${userId}/saved`,memberId));
-      await updateDoc(doc(db,"members",memberId), { saves: increment(-1) });
+      // saves aggregate is updated by a trusted Cloud Function trigger.
     } catch(e) { console.log("removeSavedMember error:", e); }
   },
   async getSavedMembers(userId) {
@@ -1142,26 +1137,14 @@ const DB = {
   async followMember(followerId, followingId, followerName) {
     try {
       await setDoc(doc(db,`members/${followingId}/followers`,followerId), { followerId, followedAt: new Date() });
-      // نحدّث عداد المتابعين المخزّن على العضو نفسه (denormalized) بدل عدّهم من الصفر كل مرة
-      await updateDoc(doc(db,"members",followingId), { followersCount: increment(1) }).catch(()=>{});
-      // أرسل إشعار شخصي للشخص اللي اتتابع — باسم اللي تابعه فعليًا، مش "شخص" عام
-      await addDoc(collection(db,"notifications"), {
-        recipientId: followingId,
-        time: new Date(),
-        icon: "👥",
-        color: "#3B82F6",
-        title: "متابعة جديدة",
-        body: followerName ? `${followerName} بدأ يتابعك!` : `شخص جديد بيتابعك!`,
-        type: "follow",
-        followerId,
-        followingId,
-      });
+      // followersCount is updated by a trusted Cloud Function trigger.
+      // Notification is generated server-side by the follower-created trigger.
     } catch(e) { console.log("followMember error:", e); }
   },
   async unfollowMember(followerId, followingId) {
     try {
       await deleteDoc(doc(db,`members/${followingId}/followers`,followerId));
-      await updateDoc(doc(db,"members",followingId), { followersCount: increment(-1) }).catch(()=>{});
+      // followersCount is updated by a trusted Cloud Function trigger.
     } catch(e) { console.log("unfollowMember error:", e); }
   },
   async getFollowers(memberId) {
@@ -1185,18 +1168,12 @@ const DB = {
       // فقط لو مش نفس الشخص
       if (viewerId === profileOwnerId) return;
       await DB.trackStat(profileOwnerId, "views");
-      // أرسل إشعار شخصي إن شخص دخل البروفايل بتاعه — باسم الزائر الحقيقي لو معروف
-      await addDoc(collection(db,"notifications"), {
-        recipientId: profileOwnerId,
-        time: new Date(),
-        icon: "👁",
-        color: "#10B981",
-        title: "زيارة جديدة",
-        body: viewerName ? `${viewerName} دخل بروفايلك` : `شخص دخل بروفايلك`,
-        type: "profileView",
-        viewerId,
-        profileOwnerId,
-      });
+      // Only authenticated viewers can generate the personal notification; the
+      // callable validates identity and rate-limits repeated views server-side.
+      if (viewerId) {
+        const notifyProfileView = httpsCallable(functions, "notifyProfileView");
+        await notifyProfileView({ profileOwnerId }).catch(() => {});
+      }
     } catch(e) { console.log("trackProfileView error:", e); }
   },
   // حذف وظيفة (الأدمن فقط)
@@ -1846,23 +1823,55 @@ const AuthScreen = ({ onLogin, darkMode, onClose, initialMode="login" }) => {
   const doLogin = async () => {
     // Admin login — يتحقق من cfg (reactive من Firestore)
     const cleanPhone = form.phone.replace(/^(\+2|2)/,"");
-    if(cleanPhone === (cfg.adminPhone||"").replace(/^(\+2|2)/,"") && form.pin === cfg.adminPin) {
+    const cleanAdminPhone = (cfg.adminPhone||"").replace(/^(\+2|2)/,"");
+    if (cleanPhone === cleanAdminPhone) {
+      setLoading(true); setError("");
+      try {
+        const secureLogin = httpsCallable(functions, "secureAdminLogin");
+        const result = await secureLogin({ phone: form.phone, pin: form.pin });
+        const customToken = result?.data?.token;
+        if (!customToken) throw new Error("لم يتم استلام جلسة دخول آمنة");
+        const cred = await signInWithCustomToken(auth, customToken);
+        const adminMemberSnap = await getDoc(doc(db, "members", cred.user.uid));
+        if (!adminMemberSnap.exists() || adminMemberSnap.data()?.isAdmin !== true) {
+          await DB.signOut();
+          throw new Error("هذا الحساب غير مصرح له بدخول لوحة الإدارة");
+        }
+        const adminUser = { uid:cred.user.uid, email:cred.user.email, phone:cfg.adminPhone||form.phone, displayName:"الأدمن", isAdmin:true };
+        localStorage.setItem("daleel_user", JSON.stringify(adminUser));
+        setLoading(false);
+        onLogin(adminUser);
+        return;
+      } catch (secureErr) {
+        const code = String(secureErr?.code || "");
+        const migrationRequired = code.includes("failed-precondition") || String(secureErr?.message || "").includes("admin-auth-migration-required");
+        if (!migrationRequired) {
+          setError(code.includes("resource-exhausted") ? "محاولات دخول كثيرة. حاول لاحقاً" : "رقم الموبايل أو الرقم السري غير صحيح");
+          setLoading(false);
+          return;
+        }
+        // أول تشغيل بعد نشر Functions فقط: نكمل لمسار الترحيل القديم مرة واحدة.
+        setLoading(false);
+      }
+    }
+    if(cleanPhone === cleanAdminPhone && form.pin === cfg.adminPin) {
       setLoading(true); setError("");
       try {
         // لازم الأدمن يعمل تسجيل دخول حقيقي عند Firebase (مش بس محلي) عشان قواعد الأمان تتعرف عليه وتسمحله بالتعديل
         const adminEmail = phoneToEmail(cfg.adminPhone || form.phone);
         const authPass = adminAuthPassword(cfg.adminPhone || form.phone);
-        let cred;
-        try {
-          cred = await DB.signIn(adminEmail, authPass);
-        } catch (signInErr) {
-          // أول مرة بس: نعمل حساب Firebase حقيقي للأدمن لو لسه مش موجود
-          if (signInErr.code === "auth/user-not-found" || signInErr.code === "auth/invalid-credential") {
-            cred = await DB.signUp(adminEmail, authPass, { name:"الأدمن", phone: cfg.adminPhone||form.phone, type:"vip" });
-          } else { throw signInErr; }
+        const cred = await DB.signIn(adminEmail, authPass);
+        const adminMemberSnap = await getDoc(doc(db, "members", cred.user.uid));
+        if (!adminMemberSnap.exists() || adminMemberSnap.data()?.isAdmin !== true) {
+          await DB.signOut();
+          throw new Error("هذا الحساب غير مصرح له بدخول لوحة الإدارة");
         }
-        // نتأكد إن مستند العضو الخاص بالأدمن معلّم isAdmin:true (عشان قاعدة isAdmin() في Firestore تشتغل)
-        await setDoc(doc(db,"members",cred.user.uid), { isAdmin:true, name:"الأدمن", phone: cfg.adminPhone||form.phone, type:"vip", status:"approved" }, { merge:true });
+        try {
+          const migrateAdminAuth = httpsCallable(functions, "migrateAdminAuth");
+          await migrateAdminAuth({ pin: form.pin, phone: cfg.adminPhone||form.phone });
+        } catch (migrationErr) {
+          console.warn("Admin auth migration did not complete:", migrationErr?.message || migrationErr);
+        }
         const adminUser = { uid:cred.user.uid, email:adminEmail, phone:cfg.adminPhone||form.phone, displayName:"الأدمن", isAdmin:true };
         localStorage.setItem("daleel_user", JSON.stringify(adminUser));
         setLoading(false);
@@ -3779,7 +3788,12 @@ const ProfileScreen = ({ member, onBack, darkMode, currentUser, onRequireAuth, o
   const submitReview = async () => {
     if(!reviewText.trim()) return;
     setSubmitting(true);
-    await DB.addReview(member.id,{name:currentUser?.displayName||"مستخدم",rating:reviewRating,text:reviewText});
+    const reviewSaved = await DB.addReview(member.id,{reviewerId:currentUser?.uid,name:currentUser?.displayName||"مستخدم",rating:reviewRating,text:reviewText});
+    if (!reviewSaved) {
+      alert("تعذر إضافة التقييم. مسموح بتقييم واحد لكل حساب، ولا يمكنك تقييم حسابك الشخصي.");
+      setSubmitting(false);
+      return;
+    }
     setReviews(p=>[{id:Date.now(),name:currentUser?.displayName||"مستخدم",rating:reviewRating,text:reviewText,time:Date.now()},...p]);
     // تحديث معدل النجوم على الشاشة فورًا بدل ما يستنى Refresh عشان يبين الرقم الجديد
     setMemberData(p => {
@@ -4644,10 +4658,9 @@ const RegisterScreen = ({ onSuccess, darkMode, currentUser }) => {
         // لو غيّر الباقة، بنرجّعها زي ما كانت — مش هتتفعل غير من لوحة الأدمن بعد الدفع
         ...(planChanged && { plan: originalPlan }),
       };
-      await setDoc(doc(db, "members", currentUser.uid), {
-        views: 0, calls: 0, waMessages: 0, saves: 0, rating: 0, reviews: 0, createdAt: new Date(),
-        ...memberData,
-      }, { merge: true });
+      // تعديل الملف الشخصي لازم يحدّث بيانات الملف فقط. الإحصائيات وتاريخ إنشاء
+      // الحساب قيم تراكمية/إدارية وممنوع تصفيرها عند كل تعديل للبروفايل.
+      await setDoc(doc(db, "members", currentUser.uid), memberData, { merge: true });
       setLoading(false);
       setUploadProgress("");
 
@@ -5175,7 +5188,7 @@ const AdminScreen = ({ darkMode, currentUser }) => {
     return members.filter(m =>
       (!memberSearch || (m.name||"").includes(memberSearch) || (m.specialty||"").includes(memberSearch) || (m.phone||"").includes(memberSearch)) &&
       (!memberStatusFilter || m.status === memberStatusFilter || (memberStatusFilter==="pending" && !m.status)) &&
-      (!memberTypeFilter || m.type === memberTypeFilter) &&
+      (!memberTypeFilter || getMemberPlan(m) === memberTypeFilter) &&
       (!memberGovFilter || m.gov === memberGovFilter)
     );
   }, [members, memberSearch, memberStatusFilter, memberTypeFilter, memberGovFilter]);
@@ -5410,7 +5423,8 @@ const AdminScreen = ({ darkMode, currentUser }) => {
   const saveSettings = async () => {
     setSavingSettings(true);
     try {
-      await setDoc(doc(db,"config","appSettings"), appSettings, { merge: true });
+      const { adminPin: _legacyAdminPin, ...publicSettings } = appSettings;
+      await setDoc(doc(db,"config","appSettings"), publicSettings, { merge: true });
       // ConfigContext onSnapshot هيتحدث تلقائياً — مش محتاجين Object.assign
       alert("✅ تم حفظ الإعدادات بنجاح!");
       setSettingsSection(null);
@@ -5420,8 +5434,8 @@ const AdminScreen = ({ darkMode, currentUser }) => {
   const cancelSubscription = async (memberId) => {
     if (!window.confirm("هل تريد إلغاء اشتراك هذا العضو؟")) return;
     try {
-      await updateDoc(doc(db,"members",memberId), { type:"starter", plan:"starter", subscriptionCancelledAt: new Date() });
-      setMembers(p => p.map(m => m.id===memberId ? {...m, type:"starter", plan:"starter"} : m));
+      await updateDoc(doc(db,"members",memberId), { plan:"starter", subscriptionCancelledAt: new Date() });
+      setMembers(p => p.map(m => m.id===memberId ? {...m, plan:"starter"} : m));
       alert("✅ تم إلغاء الاشتراك");
     } catch(e) { alert("❌ خطأ: " + e.message); }
   };
@@ -5433,7 +5447,7 @@ const AdminScreen = ({ darkMode, currentUser }) => {
       const target = members.find(m => m.id === memberId);
       const subStart = new Date();
       const subEnd = new Date(subStart.getTime() + SUBSCRIPTION_DAYS*24*60*60*1000);
-      const updateData = { type: newType, plan: newType, updatedAt: new Date() };
+      const updateData = { plan: newType, updatedAt: new Date() };
       // الباقة المجانية (starter) مالهاش سعر ولا تاريخ انتهاء اشتراك
       if (newType !== "starter") {
         updateData.subscriptionStart = subStart;
@@ -5731,7 +5745,7 @@ const AdminScreen = ({ darkMode, currentUser }) => {
                 </div>
                 <div style={{ display:"flex",gap:6,alignItems:"center" }}>
                   <span style={{ fontSize:11.5,color:sub,flexShrink:0 }}>العضوية:</span>
-                  <select value={m.type||"starter"} onChange={e=>changeMemberType(m.id,e.target.value)}
+                  <select value={getMemberPlan(m)} onChange={e=>changeMemberType(m.id,e.target.value)}
                     style={{ flex:1,padding:"5px 8px",borderRadius:8,border:`1px solid ${C.gold}44`,background:darkMode?"#1a2744":"white",color:tc,fontSize:12,fontFamily:"'Tajawal'",cursor:"pointer" }}>
                     {Object.entries(PLANS).map(([k,pl])=><option key={k} value={k}>{pl.label} - {getPlanPrice(k,appSettings)===0?"مجاني":getPlanPrice(k,appSettings)+"ج"}</option>)}
                   </select>
@@ -6389,9 +6403,7 @@ const QuickRequestModal = ({ onClose, onSubmitted, darkMode, currentUser }) => {
         userName: currentUser?.name,
         phone: currentUser?.phone || phone.trim(),
       });
-      // نبعت إشعار فوري للصنايعية المتوافقين مع الطلب، من غير ما نستنى استجابتهم
-      // عشان الرسالة تظهر للمستخدم بسرعة حتى لو مفيش صنايعية متوافقين حاليًا
-      DB.notifyMatchingCraftsmen({ text: text.trim(), gov }).catch(()=>{});
+      // Matching notifications are generated server-side when serviceRequests is created.
       onSubmitted?.();
     } catch (e) {
       setSubmitting(false);
@@ -6643,13 +6655,23 @@ function App() {
 
   const OWNER_WHATSAPP = cfg.whatsapp;
 
-  const isAdmin = user && (
-    user.isAdmin ||
-    user.phone === cfg.adminPhone ||
-    user.phone === (cfg.adminPhone||"").replace(/^0/,"2") ||
-    user.phone === "2"+(cfg.adminPhone||"") ||
-    user.email === (cfg.adminEmail||"admin@daleel.com")
-  );
+  const [verifiedAdmin, setVerifiedAdmin] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setVerifiedAdmin(false);
+    const firebaseUser = auth.currentUser;
+    if (!user?.uid || !firebaseUser?.uid || firebaseUser.uid !== user.uid) return () => { cancelled = true; };
+    getDoc(doc(db, "members", user.uid))
+      .then((snap) => {
+        if (!cancelled) setVerifiedAdmin(Boolean(snap.exists() && snap.data()?.isAdmin === true));
+      })
+      .catch(() => { if (!cancelled) setVerifiedAdmin(false); });
+    return () => { cancelled = true; };
+  }, [user?.uid]);
+  const isAdmin = Boolean(user && verifiedAdmin);
+  useEffect(() => {
+    if (activeTab === "admin" && !isAdmin) setActiveTab("home");
+  }, [activeTab, isAdmin]);
   const tabs = user ? [
     {id:"home", icon:"🏠", label:"الرئيسية"},
     {id:"search", icon:"🔍", label:"البحث"},
@@ -6754,7 +6776,7 @@ function App() {
             {activeTab==="notifications"&&<ErrorBoundary><NotificationsScreen darkMode={darkMode} currentUser={user}/></ErrorBoundary>}
             {activeTab==="messages"&&<ErrorBoundary><DirectMessagesScreen darkMode={darkMode} currentUser={user}/></ErrorBoundary>}
             {activeTab==="profile"&&(user?<ErrorBoundary><MyProfileScreen onSuccess={handleRegisterSuccess} darkMode={darkMode} currentUser={user} onMemberClick={handleMemberClick} onShowPayment={()=>setShowPayment(true)}/></ErrorBoundary>:<div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:13,background:darkMode?C.navyDeep:C.offWhite,paddingBottom:80}}><div style={{fontSize:50}}>🔒</div><div style={{fontFamily:"'Cairo'",fontWeight:700,fontSize:17,color:darkMode?"white":C.navy}}>سجّل دخولك أولاً</div><button className="btn btn-primary" onClick={()=>setShowAuth(true)}>دخول / تسجيل</button></div>)}
-            {activeTab==="admin"&&<ErrorBoundary><AdminScreen darkMode={darkMode} currentUser={user}/></ErrorBoundary>}
+            {activeTab==="admin"&&isAdmin&&<ErrorBoundary><AdminScreen darkMode={darkMode} currentUser={user}/></ErrorBoundary>}
           </div>
         </>
       )}

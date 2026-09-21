@@ -104,12 +104,12 @@ async function main() {
     await assertFails(updateDoc(doc(anon, "members", "bob"), { name: "Hacked" }));
 
     await assertFails(updateDoc(doc(anon, "members", "bob"), { saves: 1 }));
-    await assertSucceeds(updateDoc(doc(alice, "members", "bob"), { saves: 1 }));
+    await assertFails(updateDoc(doc(alice, "members", "bob"), { saves: 1 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { saves: 9 }));
-    await assertSucceeds(updateDoc(doc(alice, "members", "bob"), { followersCount: 1 }));
+    await assertFails(updateDoc(doc(alice, "members", "bob"), { followersCount: 1 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { followersCount: -1 }));
 
-    await assertSucceeds(updateDoc(doc(alice, "members", "bob"), { reviews: 1, rating: 5 }));
+    await assertFails(updateDoc(doc(alice, "members", "bob"), { reviews: 1, rating: 5 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { reviews: 3, rating: 5 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { reviews: 2, rating: 9 }));
     await assertFails(updateDoc(doc(alice, "members", "bob"), { reviews: 2, rating: 4, status: "pending" }));
@@ -118,8 +118,26 @@ async function main() {
       status: "approved", plan: "premium",
     }));
 
+    // ── Review integrity ─────────────────────────────────────────
+    await assertSucceeds(setDoc(doc(alice, "members", "bob", "reviews", "alice"), {
+      reviewerId: "alice", name: "Alice", rating: 5, text: "ممتاز", time: new Date(),
+    }));
+    // Same UID cannot create a second review because this is now an update.
+    await assertFails(setDoc(doc(alice, "members", "bob", "reviews", "alice"), {
+      reviewerId: "alice", name: "Alice", rating: 1, text: "تغيير", time: new Date(),
+    }));
+    await assertFails(setDoc(doc(bob, "members", "bob", "reviews", "bob"), {
+      reviewerId: "bob", name: "Bob", rating: 5, text: "self", time: new Date(),
+    }));
+    await assertFails(setDoc(doc(eve, "members", "bob", "reviews", "forged-id"), {
+      reviewerId: "eve", name: "Eve", rating: 5, text: "forged", time: new Date(),
+    }));
+
     // ── Saved/followers subcollections ───────────────────────────
     await assertSucceeds(setDoc(doc(alice, "members", "alice", "saved", "bob"), {
+      memberId: "bob", savedAt: new Date(),
+    }));
+    await assertFails(setDoc(doc(alice, "members", "alice", "saved", "fake-path"), {
       memberId: "bob", savedAt: new Date(),
     }));
     await assertFails(getDoc(doc(bob, "members", "alice", "saved", "bob")));
@@ -128,6 +146,9 @@ async function main() {
     }));
     await assertFails(setDoc(doc(eve, "members", "bob", "followers", "alice"), {
       followerId: "alice", followedAt: new Date(),
+    }));
+    await assertFails(setDoc(doc(bob, "members", "bob", "followers", "bob"), {
+      followerId: "bob", followedAt: new Date(),
     }));
 
     // ── Chats / first-message compatibility ─────────────────────
@@ -189,9 +210,13 @@ async function main() {
 
     // ── Service request ──────────────────────────────────────────
     const requestRef = doc(anon, "serviceRequests", "request1");
-    await assertSucceeds(setDoc(requestRef, { text: "محتاج سباك في القاهرة" }));
+    await assertFails(setDoc(requestRef, { text: "محتاج سباك في القاهرة" }));
+    const adminRequestRef = doc(admin, "serviceRequests", "request1");
+    await assertSucceeds(setDoc(adminRequestRef, {
+      text: "محتاج سباك في القاهرة", status: "open"
+    }));
     await assertFails(getDoc(requestRef));
-    await assertSucceeds(getDoc(doc(admin, "serviceRequests", "request1")));
+    await assertSucceeds(getDoc(adminRequestRef));
 
     // ── Posts ────────────────────────────────────────────────────
     await assertSucceeds(setDoc(doc(alice, "posts", "post1"), {
@@ -209,8 +234,16 @@ async function main() {
     await assertFails(setDoc(doc(bob, "jobs", "forgedJob"), {
       postedBy: "alice", title: "Fake", applicants: 0,
     }));
-    await assertSucceeds(updateDoc(doc(bob, "jobs", "job1"), { applicants: 1 }));
-    await assertFails(updateDoc(doc(bob, "jobs", "job1"), { applicants: 3 }));
+    await assertFails(updateDoc(doc(bob, "jobs", "job1"), { applicants: 1 }));
+    await assertSucceeds(setDoc(doc(bob, "jobApplications", "job1_bob"), {
+      jobId: "job1", userId: "bob", status: "pending", appliedAt: new Date(),
+    }));
+    await assertFails(setDoc(doc(bob, "jobApplications", "job1_bob"), {
+      jobId: "job1", userId: "bob", status: "pending", appliedAt: new Date(),
+    }));
+    await assertFails(setDoc(doc(bob, "jobApplications", "random-id"), {
+      jobId: "job1", userId: "bob", status: "pending", appliedAt: new Date(),
+    }));
 
     console.log("✅ Firestore behavioral security tests passed");
   } finally {
