@@ -41,7 +41,10 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # Compile staged Firestore/Storage rules against local emulators only.
-      # This does NOT deploy or touch the production Firebase project.
-      - name: Validate Firebase security rules
-        run: npx --yes firebase-tools@latest emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "echo Firebase rules compiled successfully"
+      - name: Install Firebase rules test helper
+        run: npm install --no-save @firebase/rules-unit-testing
+
+      # Compile staged Firestore/Storage rules and execute behavioral authorization tests
+      # against local emulators only. This never touches the production Firebase project.
+      - name: Validate Firebase security rules behavior
+        run: npx --yes firebase-tools@latest emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js"
