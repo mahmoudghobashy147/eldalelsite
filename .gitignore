@@ -32,16 +32,16 @@ coverage
 # nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
+# Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-workflows)
 .grunt
 
-# Bower dependency directory (https://bower.io/)
+# Bower dependency directory
 bower_components
 
 # node-waf configuration
 .lock-wscript
 
-# Compiled binary addons (http://nodejs.org/api/addons.html)
+# Compiled binary addons
 build/Release
 
 # Dependency directories
@@ -62,10 +62,27 @@ node_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
+# dotenv environment variables
 .env
+.env.*
+!.env.example
 
 # dataconnect generated files
 .dataconnect
 
+# Firebase / Google Cloud service-account credentials — never commit private keys
 serviceAccountKey.json
+firebase-service-account*.json
+service-account*.json
+*service-account-key*.json
+secrets/
+
+# Android signing credentials — release workflow reads these from GitHub Secrets
+*.jks
+*.keystore
+*.p12
+*.pfx
+key.properties
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
