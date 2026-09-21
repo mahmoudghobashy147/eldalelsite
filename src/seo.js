@@ -6,7 +6,8 @@
 export const SITE_URL = "https://eldalel-elshamel.online";
 export const SITE_NAME = "الدليل الشامل";
 export const DEFAULT_DESCRIPTION = "الدليل الشامل - دليلك في عالم المقاولات والتشطيبات والعقارات، ابحث عن أفضل الصنايعية والفنيين والشركات والموردين في مصر";
-export const DEFAULT_IMAGE = `${SITE_URL}/og-image.jpg`; // حط صورة مناسبة بمقاس 1200x630 في public/
+// استخدم صورة موجودة فعليًا بدل og-image.jpg غير الموجود، عشان معاينة الروابط ما تطلعش بصورة مكسورة
+export const DEFAULT_IMAGE = `${SITE_URL}/images/hero-team.png`;
 
 // --- توليد slug عربي/إنجليزي آمن للروابط ---
 // بيحول النص لحروف صغيرة، يشيل الرموز الغريبة، ويستبدل المسافات بشرطة
