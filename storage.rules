@@ -1,0 +1,85 @@
+rules_version = '2';
+
+// ============================================================
+// الدليل الشامل — Storage Rules (STAGED / NOT DEPLOYED YET)
+// ============================================================
+// الملف ده للمراجعة فقط ولسه مش متوصل في firebase.json.
+// الهدف إن كل عضو يكتب داخل مساحته فقط، والإعلانات للأدمن فقط.
+// القراءة عامة لأن الصور/الفيديوهات بتظهر في البروفايلات والمنشورات العامة.
+// ============================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/members/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function imageUnder8MB() {
+      return request.resource != null
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    function videoUnder80MB() {
+      return request.resource != null
+        && request.resource.size < 80 * 1024 * 1024
+        && request.resource.contentType.matches('video/.*');
+    }
+
+    // صور الحساب الشخصية
+    match /avatars/{uid} {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid && imageUnder8MB();
+    }
+
+    // أغلفة بصيغة covers/{uid}
+    match /covers/{uid} {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid && imageUnder8MB();
+    }
+
+    // أغلفة بصيغة covers/{uid}_{timestamp}
+    match /covers/{fileName} {
+      allow read: if true;
+      allow write: if signedIn()
+        && fileName.matches('^' + request.auth.uid + '(_.*)?$')
+        && imageUnder8MB();
+    }
+
+    // أعمال العضو
+    match /workPhotos/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid && imageUnder8MB();
+    }
+
+    // صور المنشورات
+    match /postImages/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid && imageUnder8MB();
+    }
+
+    // فيديوهات المنشورات
+    match /postVideos/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid && videoUnder80MB();
+    }
+
+    // صور الإعلانات من لوحة الإدارة
+    match /ads/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && imageUnder8MB();
+    }
+
+    // أي مسار آخر غير معروف مقفول.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
