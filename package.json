@@ -14,12 +14,12 @@
     "react-dom": "^18.2.0"
   },
   "scripts": {
-    "patch:safety": "node scripts/apply-safe-patches.js && node scripts/apply-plan-field-patches.js && node scripts/apply-chat-rule-patches.js && node scripts/apply-server-notification-patches.js && node scripts/apply-engagement-counter-patches.js && node scripts/apply-engagement-rule-patches.js && node scripts/apply-review-integrity-patches.js && node scripts/apply-data-integrity-patches.js && node scripts/apply-service-request-security-patches.js && node scripts/apply-member-interaction-security-patches.js && node scripts/add-finishing-catalog.js && node scripts/enhance-finishing-catalog.js && node scripts/finalize-finishing-catalog.js",
+    "patch:safety": "node scripts/apply-safe-patches.js && node scripts/apply-plan-field-patches.js && node scripts/apply-chat-rule-patches.js && node scripts/apply-server-notification-patches.js && node scripts/apply-engagement-counter-patches.js && node scripts/apply-engagement-rule-patches.js && node scripts/apply-review-integrity-patches.js && node scripts/apply-data-integrity-patches.js && node scripts/apply-service-request-security-patches.js && node scripts/apply-member-interaction-security-patches.js && node scripts/add-finishing-catalog.js && node scripts/enhance-finishing-catalog.js && node scripts/finalize-finishing-catalog.js && node scripts/add-catalog-owner-portal.js",
     "prestart": "npm run patch:safety",
     "start": "react-scripts start",
     "prebuild": "npm run patch:safety",
     "build": "react-scripts build",
-    "postbuild": "node scripts/verify-build-output.js && node scripts/verify-catalog-integration.js",
+    "postbuild": "node scripts/verify-build-output.js && node scripts/verify-catalog-integration.js && node scripts/verify-catalog-owner-portal.js",
     "sitemap": "node generate-sitemap.js",
     "test": "react-scripts test",
     "test:rules": "firebase emulators:exec --only firestore --project demo-daleel-rules \"node scripts/test-firestore-rules.js\"",
