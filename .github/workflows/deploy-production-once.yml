@@ -1,0 +1,126 @@
+name: Deploy Production Once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-production-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+      FIREBASE_PROJECT_ID: eldalel-elshamel
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize latest security hardening
+        run: node scripts/apply-member-interaction-security-patches.js
+
+      - name: Commit materialized hardening
+        shell: bash
+        run: |
+          if git diff --quiet -- src/App.jsx firestore.rules scripts/test-firestore-rules.js; then
+            echo "Security hardening already materialized"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/App.jsx firestore.rules scripts/test-firestore-rules.js
+            git commit -m "Materialize member interaction hardening"
+            git push origin HEAD:main
+          fi
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build production website
+        run: npm run build
+
+      - name: Verify custom domain
+        shell: bash
+        run: |
+          test -f build/CNAME
+          grep -qx "eldalel-elshamel.online" build/CNAME
+
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Validate Functions syntax
+        run: |
+          node --check functions/index.js
+          node --check functions/notification-triggers.js
+          node --check functions/engagement-triggers.js
+          node --check functions/service-requests.js
+          node --check functions/member-interactions.js
+          node --check functions/main.js
+
+      - name: Verify Firebase credentials
+        shell: bash
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT_BASE64 is not configured"
+            exit 1
+          fi
+
+      - name: Decode Firebase service account
+        shell: bash
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/firebase-service-account.json"
+          test -s "$RUNNER_TEMP/firebase-service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy Cloud Functions first
+        run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only functions --non-interactive
+
+      - name: Setup Java 21 for Firebase emulators
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Re-test Firestore and Storage rules
+        run: npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js"
+
+      - name: Deploy Firestore and Storage rules
+        run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only firestore:rules,storage --non-interactive
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Publish website to GitHub Pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx gh-pages -d build -m "Deploy production ${GITHUB_SHA}"
+
+      - name: Cleanup Firebase credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
+
+      - name: Remove one-time deployment workflow
+        if: success()
+        shell: bash
+        run: |
+          git checkout main
+          git pull --ff-only origin main
+          rm -f .github/workflows/deploy-production-once.yml
+          git add .github/workflows/deploy-production-once.yml
+          git commit -m "Remove one-time production deployment workflow"
+          git push origin HEAD:main
