@@ -1,7 +1,6 @@
 name: Build Android APK
 
-# بيشتغل يدويًا لما تدوس "Run workflow" من تاب Actions في GitHub، أو تلقائيًا
-# كل ما ترفع كود جديد على فرع main (تقدر تشيل الجزء ده لو عايز يدوي بس)
+# نسخة Debug للاختبار السريع. نسخة Google Play الموقعة موجودة في workflow منفصل.
 on:
   workflow_dispatch:
   push:
@@ -14,43 +13,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
 
-      - name: Setup Java (مطلوب لبناء أندرويد)
-        uses: actions/setup-java@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 21
+          java-version: '21'
 
       - name: Install web dependencies
         run: npm install
 
-      - name: Fix executable permissions (مشكلة شائعة على Linux runners)
+      - name: Fix executable permissions
         run: chmod -R +x node_modules/.bin
 
       - name: Build web app
         run: npm run build
 
-      - name: Install Capacitor
-        run: npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/push-notifications
-
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Copy custom app icons (لوجو الدليل الشامل بدل الأيقونة الافتراضية)
+      - name: Copy custom app icons
         run: cp -r android-icons/* android/app/src/main/res/
 
-      # لازم عشان الإشعارات الحقيقية (Push Notifications) تشتغل — ده الملف اللي
-      # بيربط تطبيق الأندرويد بمشروع Firebase بتاعنا، متنزّل من Firebase Console
-      # وموجود في جذر المشروع
       - name: Add google-services.json
         run: cp google-services.json android/app/google-services.json
 
-      # بنضيف Google Services Gradle Plugin يدويًا لأن مشروع الأندرويد بيتولد من
-      # الصفر كل مرة (مش متسجل في المستودع)، فمحتاجين نحقن السطرين دول تلقائيًا
       - name: Add Google Services Gradle plugin
         run: |
           sed -i "/classpath 'com.android.tools.build:gradle/a\\        classpath 'com.google.gms:google-services:4.4.2'" android/build.gradle
@@ -63,10 +55,9 @@ jobs:
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleDebug
 
-      # الـ APK الناتج بيتحط كـ "Artifact" تقدر تنزّله من صفحة الـ Action بعد
-      # ما تخلص، من غير ما يتنشر على GitHub Releases أو أي حاجة عامة
-      - name: Upload APK
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: eldalel-elshamel-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
