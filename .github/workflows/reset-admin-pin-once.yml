@@ -2,6 +2,10 @@ name: Reset Admin PIN Once
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/reset-admin-pin-trigger.txt
 
 permissions:
   contents: read
