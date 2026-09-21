@@ -60,6 +60,7 @@ jobs:
           node --check functions/notification-triggers.js
           node --check functions/engagement-triggers.js
           node --check functions/service-requests.js
+          node --check functions/member-interactions.js
           node --check functions/main.js
 
       - name: Deploy Functions
@@ -80,6 +81,7 @@ jobs:
           node scripts/apply-review-integrity-patches.js
           node scripts/apply-data-integrity-patches.js
           node scripts/apply-service-request-security-patches.js
+          node scripts/apply-member-interaction-security-patches.js
 
       - name: Re-test Firestore and Storage rules before production deploy
         if: ${{ inputs.target == 'rules' }}
