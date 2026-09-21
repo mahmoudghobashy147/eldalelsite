@@ -1,0 +1,58 @@
+name: Runtime Browser Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/runtime-smoke.yml
+      - src/**
+      - public/**
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Start production build locally
+        shell: bash
+        run: |
+          python3 -m http.server 4173 --directory build > /tmp/daleel-http.log 2>&1 &
+          echo $! > /tmp/daleel-http.pid
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/daleel-http.log
+          exit 1
+      - name: Run real browser smoke test after splash
+        shell: bash
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then
+            echo "::error::Chrome/Chromium not found on runner"
+            exit 1
+          fi
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=7000 --dump-dom http://127.0.0.1:4173/ > /tmp/daleel-dom.html 2> /tmp/daleel-chrome.log || true
+          echo "----- Chrome log -----"
+          cat /tmp/daleel-chrome.log || true
+          echo "----- DOM markers -----"
+          grep -o "كل احتياجات البناء والتشطيب في مكان واحد" /tmp/daleel-dom.html || true
+          if ! grep -q "كل احتياجات البناء والتشطيب في مكان واحد" /tmp/daleel-dom.html; then
+            echo "::error::Homepage did not render after splash"
+            echo "----- DOM tail -----"
+            tail -c 12000 /tmp/daleel-dom.html || true
+            exit 1
+          fi
+          echo "✅ Homepage rendered after splash"
