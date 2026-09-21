@@ -20,16 +20,28 @@ function replaceOnce(oldText, newText, label) {
 }
 
 // 0) Never ship historical credential values/comments into a production build.
-// The source repository history must still be treated as compromised and the old
-// credential must remain rotated; this only prevents the stale value reaching new bundles.
-const staleCredentialComment = /\n\s*\/\/ فعليًا من لوحة إعدادات الأدمن حالًا[^\n]*\n\s*\/\/ فعليًا من لوحة إعدادات الأدمن حالًا[^\n]*/;
-// The wording has changed historically, so use a narrower single-line redaction too.
 const beforeRedaction = source;
 source = source.replace(/^\s*\/\/.*القيمة القديمة.*بقت متسربة ومعروفة.*$/gm, "  // تم حذف أي قيمة اعتماد تاريخية من النسخة المبنية — غيّر أي سر قديم ظهر في Git history.");
 if (source !== beforeRedaction) {
   changed = true;
   console.log("✓ historical credential comment redacted from build source");
 }
+
+// 0b) Custom-token admin login needs Firebase Auth's secure custom-token API.
+replaceOnce(
+`import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail, signOut as fbSignOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";`,
+`import { getAuth, signInWithEmailAndPassword, signInWithCustomToken, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail, signOut as fbSignOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";`,
+"import signInWithCustomToken"
+);
+
+// 0c) If a field is deleted from Firestore, do not keep the old value alive in
+// React state by merging the previous config object back in. This matters for
+// removing the legacy public adminPin during migration.
+replaceOnce(
+`      if (snap.exists()) setConfig(p => ({ ...DEFAULT_CONFIG, ...p, ...snap.data() }));`,
+`      if (snap.exists()) setConfig({ ...DEFAULT_CONFIG, ...snap.data() });`,
+"drop deleted config values from client state"
+);
 
 // 1) Editing an existing member profile must never reset engagement counters,
 // ratings, reviews, saves, or the original account creation date.
@@ -45,8 +57,7 @@ replaceOnce(
 );
 
 // 2) Never derive dashboard access from localStorage fields, phone number, or
-// email alone. Verify the currently authenticated Firebase UID and then read
-// the authoritative isAdmin flag from that user's Firestore member document.
+// email alone. Verify the current Firebase UID and authoritative Firestore flag.
 replaceOnce(
 `  const isAdmin = user && (
     user.isAdmin ||
@@ -75,17 +86,58 @@ replaceOnce(
 "verify admin authorization against Firebase + Firestore"
 );
 
-// 3) Defense in depth: even if activeTab is manipulated manually, never mount
-// AdminScreen unless the verified admin check above succeeded.
+// 3) Defense in depth: never mount AdminScreen without verified admin state.
 replaceOnce(
 `            {activeTab==="admin"&&<ErrorBoundary><AdminScreen darkMode={darkMode} currentUser={user}/></ErrorBoundary>}`,
 `            {activeTab==="admin"&&isAdmin&&<ErrorBoundary><AdminScreen darkMode={darkMode} currentUser={user}/></ErrorBoundary>}`,
 "gate AdminScreen mount behind verified admin"
 );
 
-// 4) The browser must never be able to create/promote an administrator account.
-// Admin authentication may sign into an existing Firebase account, but the
-// authoritative member record must already exist with isAdmin === true.
+// 4) Try the new server-side admin login first. Only when the server explicitly
+// reports that migration has not happened yet do we fall through to the legacy
+// bootstrap path below. A wrong PIN after migration never falls back.
+replaceOnce(
+`    const cleanPhone = form.phone.replace(/^(\\+2|2)/,"");
+    if(cleanPhone === (cfg.adminPhone||"").replace(/^(\\+2|2)/,"") && form.pin === cfg.adminPin) {`,
+`    const cleanPhone = form.phone.replace(/^(\\+2|2)/,"");
+    const cleanAdminPhone = (cfg.adminPhone||"").replace(/^(\\+2|2)/,"");
+    if (cleanPhone === cleanAdminPhone) {
+      setLoading(true); setError("");
+      try {
+        const secureLogin = httpsCallable(functions, "secureAdminLogin");
+        const result = await secureLogin({ phone: form.phone, pin: form.pin });
+        const customToken = result?.data?.token;
+        if (!customToken) throw new Error("لم يتم استلام جلسة دخول آمنة");
+        const cred = await signInWithCustomToken(auth, customToken);
+        const adminMemberSnap = await getDoc(doc(db, "members", cred.user.uid));
+        if (!adminMemberSnap.exists() || adminMemberSnap.data()?.isAdmin !== true) {
+          await DB.signOut();
+          throw new Error("هذا الحساب غير مصرح له بدخول لوحة الإدارة");
+        }
+        const adminUser = { uid:cred.user.uid, email:cred.user.email, phone:cfg.adminPhone||form.phone, displayName:"الأدمن", isAdmin:true };
+        localStorage.setItem("daleel_user", JSON.stringify(adminUser));
+        setLoading(false);
+        onLogin(adminUser);
+        return;
+      } catch (secureErr) {
+        const code = String(secureErr?.code || "");
+        const migrationRequired = code.includes("failed-precondition") || String(secureErr?.message || "").includes("admin-auth-migration-required");
+        if (!migrationRequired) {
+          setError(code.includes("resource-exhausted") ? "محاولات دخول كثيرة. حاول لاحقاً" : "رقم الموبايل أو الرقم السري غير صحيح");
+          setLoading(false);
+          return;
+        }
+        // أول تشغيل بعد نشر Functions فقط: نكمل لمسار الترحيل القديم مرة واحدة.
+        setLoading(false);
+      }
+    }
+    if(cleanPhone === cleanAdminPhone && form.pin === cfg.adminPin) {`,
+"prefer server-side admin custom-token login"
+);
+
+// 5) Legacy bootstrap may sign into the already-existing Firebase admin account,
+// but it may never create/promote an admin from the browser. After verification,
+// migrate the PIN server-side and delete it from public appSettings.
 replaceOnce(
 `        let cred;
         try {
@@ -100,15 +152,27 @@ replaceOnce(
         await setDoc(doc(db,"members",cred.user.uid), { isAdmin:true, name:"الأدمن", phone:cfg.adminPhone||form.phone, type:"vip", status:"approved" }, { merge:true });
         const adminUser = { uid:cred.user.uid, email:adminEmail, phone:cfg.adminPhone||form.phone, displayName:"الأدمن", isAdmin:true };`,
 `        const cred = await DB.signIn(adminEmail, authPass);
-        // ممنوع إنشاء حساب أدمن أو ترقية عضو من المتصفح. الحساب لازم يكون
-        // موجود ومعلّم isAdmin:true مسبقًا في Firestore.
         const adminMemberSnap = await getDoc(doc(db, "members", cred.user.uid));
         if (!adminMemberSnap.exists() || adminMemberSnap.data()?.isAdmin !== true) {
           await DB.signOut();
           throw new Error("هذا الحساب غير مصرح له بدخول لوحة الإدارة");
         }
+        try {
+          const migrateAdminAuth = httpsCallable(functions, "migrateAdminAuth");
+          await migrateAdminAuth({ pin: form.pin, phone: cfg.adminPhone||form.phone });
+        } catch (migrationErr) {
+          console.warn("Admin auth migration did not complete:", migrationErr?.message || migrationErr);
+        }
         const adminUser = { uid:cred.user.uid, email:adminEmail, phone:cfg.adminPhone||form.phone, displayName:"الأدمن", isAdmin:true };`,
-"prevent browser-side admin creation and self-promotion"
+"prevent client admin promotion and migrate secret server-side"
+);
+
+// 6) Never persist the legacy PIN back into the public appSettings document.
+replaceOnce(
+`      await setDoc(doc(db,"config","appSettings"), appSettings, { merge: true });`,
+`      const { adminPin: _legacyAdminPin, ...publicSettings } = appSettings;
+      await setDoc(doc(db,"config","appSettings"), publicSettings, { merge: true });`,
+"keep admin PIN out of public app settings"
 );
 
 if (changed) {
