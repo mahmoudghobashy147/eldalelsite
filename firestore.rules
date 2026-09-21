@@ -5,10 +5,6 @@ rules_version = '2';
 // ============================================================
 // مهم: الملف ده متعمد لسه مش متوصل في firebase.json.
 // لازم يتجرب على Emulator/بيئة اختبار قبل نشره على الإنتاج.
-//
-// ملاحظة أمان مهمة:
-// config/appSettings مقروء من التطبيق العام. أي adminPin أو سر مخزن داخله
-// ليس سراً حقيقياً حتى لو القواعد أدناه تمنع الكتابة عليه.
 // ============================================================
 
 service cloud.firestore {
@@ -33,17 +29,23 @@ service cloud.firestore {
     }
 
     function memberProtectedFieldsUnchanged() {
-      return request.resource.data.isAdmin == resource.data.isAdmin
-        && request.resource.data.status == resource.data.status
-        && request.resource.data.verified == resource.data.verified
-        && request.resource.data.subscriptionStart == resource.data.subscriptionStart
-        && request.resource.data.subscriptionEnd == resource.data.subscriptionEnd
-        && request.resource.data.subscriptionDurationDays == resource.data.subscriptionDurationDays;
+      return request.resource.data.diff(resource.data).affectedKeys().hasNone([
+        'isAdmin',
+        'status',
+        'verified',
+        'subscriptionStart',
+        'subscriptionEnd',
+        'subscriptionDurationDays',
+        'approvedAt',
+        'rejectedAt',
+        'subscriptionCancelledAt'
+      ]);
     }
 
     function ownPlanChangeAllowed() {
       // العضو يقدر يختار الباقة وهو Pending فقط؛ بعد الاعتماد الإدارة هي اللي تغيّرها.
-      return resource.data.status != 'approved'
+      return !('status' in resource.data)
+        || resource.data.status != 'approved'
         || request.resource.data.plan == resource.data.plan;
     }
 
@@ -58,12 +60,20 @@ service cloud.firestore {
       // الملفات المعتمدة عامة، وصاحب الحساب/الأدمن يقدر يشوف حسابه حتى لو Pending.
       allow get, list: if resource.data.status == 'approved' || self(memberId) || isAdmin();
 
-      // إنشاء الحساب لنفس UID فقط، وممنوع يخلق نفسه Admin أو Approved.
+      // إنشاء الحساب لنفس UID فقط، وممنوع يخلق نفسه Admin/Verified أو يخلق اشتراك معتمد.
       allow create: if self(memberId)
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.isAdmin != true
-        && request.resource.data.status != 'approved'
-        && request.resource.data.status != 'rejected';
+        && !request.resource.data.keys().hasAny([
+          'isAdmin',
+          'verified',
+          'approvedAt',
+          'rejectedAt',
+          'subscriptionStart',
+          'subscriptionEnd',
+          'subscriptionDurationDays',
+          'subscriptionCancelledAt'
+        ])
+        && (!('status' in request.resource.data) || request.resource.data.status == 'pending');
 
       // صاحب الحساب يعدل بياناته العادية فقط مع بقاء الحقول الإدارية ثابتة.
       allow update: if isAdmin()
@@ -76,8 +86,6 @@ service cloud.firestore {
       // تقييمات العضو
       match /reviews/{reviewId} {
         allow read: if true;
-        // الكود الحالي لا يكتب authorId داخل التقييم؛ لذلك دي حماية أولية فقط.
-        // لاحقاً الأفضل إضافة authorId ومنع أكثر من تقييم لنفس العضو.
         allow create: if signedIn()
           && request.resource.data.rating is number
           && request.resource.data.rating >= 1
@@ -111,8 +119,6 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.authorId == request.auth.uid;
 
-      // صاحب المنشور/الأدمن يعدل بحرية.
-      // باقي المستخدمين نسمح لهم فقط بحقول التفاعل التي يعدلها الكود الحالي.
       allow update: if isAdmin()
         || (signedIn() && resource.data.authorId == request.auth.uid)
         || (signedIn() && onlyChanged(['likedBy', 'likes']))
@@ -174,7 +180,6 @@ service cloud.firestore {
     // QUICK SERVICE REQUESTS
     // ----------------------------------------------------------
     match /serviceRequests/{requestId} {
-      // الزائر ممكن يبعت طلب سريع من غير حساب.
       allow create: if request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() <= 1500;
@@ -192,7 +197,6 @@ service cloud.firestore {
 
       allow update: if isAdmin()
         || (signedIn() && resource.data.postedBy == request.auth.uid)
-        // التقديم على الوظيفة يزوّد applicants فقط في الكود الحالي.
         || (signedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['applicants'])
           && request.resource.data.applicants == resource.data.applicants + 1);
@@ -222,24 +226,25 @@ service cloud.firestore {
       // الشخص يشوف الإشعارات الموجهة له والإشعارات العامة فقط.
       allow read: if isAdmin()
         || (signedIn()
-          && (resource.data.recipientId == request.auth.uid
+          && (('recipientId' in resource.data && resource.data.recipientId == request.auth.uid)
+            || !('recipientId' in resource.data)
             || resource.data.recipientId == null));
 
       // الإشعار العام للأدمن فقط.
       // الإشعار الشخصي مسموح لمستخدم مسجل للتوافق مع الرسائل/المتابعة/زيارة البروفايل الحالية.
-      // لاحقاً الأفضل نقل إنشاء الإشعارات بالكامل إلى Cloud Functions.
       allow create: if isAdmin()
         || (signedIn()
-          && request.resource.data.recipientId != null
+          && ('recipientId' in request.resource.data)
           && request.resource.data.recipientId is string);
 
       // المستخدم يقدر يعلّم إشعاره كمقروء فقط.
       allow update: if isAdmin()
         || (signedIn()
+          && ('recipientId' in resource.data)
           && resource.data.recipientId == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']))
         || (signedIn()
-          && resource.data.recipientId == null
+          && (!('recipientId' in resource.data) || resource.data.recipientId == null)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']));
 
       allow delete: if isAdmin();
@@ -268,8 +273,6 @@ service cloud.firestore {
     match /config/stats {
       allow read: if true;
 
-      // عداد الزيارات الحالي بيتحدث من العميل، فنسمح فقط بإنشائه بالقيمة الأساسية
-      // أو زيادة totalVisits بمقدار 1 بدون تعديل أي حقل آخر.
       allow create: if request.resource.data.keys().hasOnly(['totalVisits'])
         && request.resource.data.totalVisits is number
         && request.resource.data.totalVisits >= 10000;
@@ -280,7 +283,8 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // أي Collection غير مذكورة فوق مقفولة افتراضياً.
+    // config/adminSecrets و adminLoginAttempts وأي Collection غير مذكورة فوق
+    // مقفولة تمامًا للعميل. Cloud Functions عبر Admin SDK تتجاوز القواعد دي بأمان.
     match /{document=**} {
       allow read, write: if false;
     }
