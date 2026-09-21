@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -46,14 +48,36 @@ jobs:
           fi
           UA='Mozilla/5.0 (Linux; Android 12; CPH2113) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
           "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --user-agent="$UA" --virtual-time-budget=7000 --dump-dom http://127.0.0.1:4173/ > /tmp/daleel-dom.html 2> /tmp/daleel-chrome.log || true
-          echo "----- Chrome log -----"
           cat /tmp/daleel-chrome.log || true
-          echo "----- DOM markers -----"
-          grep -o "كل احتياجات البناء والتشطيب في مكان واحد" /tmp/daleel-dom.html || true
           if ! grep -q "كل احتياجات البناء والتشطيب في مكان واحد" /tmp/daleel-dom.html; then
-            echo "::error::Mobile homepage did not render after splash"
-            echo "----- DOM tail -----"
+            echo "::error::Mobile homepage did not render after splash from fresh build"
             tail -c 16000 /tmp/daleel-dom.html || true
             exit 1
           fi
-          echo "✅ Mobile homepage rendered after splash"
+          echo "✅ Fresh mobile homepage rendered after splash"
+      - name: Test currently deployed gh-pages files on Android viewport
+        shell: bash
+        run: |
+          kill "$(cat /tmp/daleel-http.pid)" || true
+          git fetch origin gh-pages:refs/remotes/origin/gh-pages
+          rm -rf /tmp/daleel-gh-pages
+          git worktree add --detach /tmp/daleel-gh-pages origin/gh-pages
+          python3 -m http.server 4174 --directory /tmp/daleel-gh-pages > /tmp/daleel-pages-http.log 2>&1 &
+          PAGES_PID=$!
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4174/ >/dev/null; then break; fi
+            sleep 1
+          done
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          UA='Mozilla/5.0 (Linux; Android 12; CPH2113) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --user-agent="$UA" --virtual-time-budget=7000 --dump-dom http://127.0.0.1:4174/ > /tmp/daleel-pages-dom.html 2> /tmp/daleel-pages-chrome.log || true
+          echo "----- deployed branch chrome log -----"
+          cat /tmp/daleel-pages-chrome.log || true
+          if ! grep -q "كل احتياجات البناء والتشطيب في مكان واحد" /tmp/daleel-pages-dom.html; then
+            echo "::error::Currently deployed gh-pages build did not render after splash"
+            tail -c 16000 /tmp/daleel-pages-dom.html || true
+            kill "$PAGES_PID" || true
+            exit 1
+          fi
+          echo "✅ Current gh-pages mobile homepage rendered after splash"
+          kill "$PAGES_PID" || true
