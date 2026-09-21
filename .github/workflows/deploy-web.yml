@@ -1,0 +1,44 @@
+name: Deploy Website to GitHub Pages
+
+# يدوي فقط: شغّله بعد نشر Cloud Functions الآمنة.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build production website
+        run: npm run build
+
+      - name: Verify custom domain is included
+        run: |
+          test -f build/CNAME
+          grep -qx "eldalel-elshamel.online" build/CNAME
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Publish build to gh-pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx gh-pages -d build -m "Deploy web ${GITHUB_SHA}"
