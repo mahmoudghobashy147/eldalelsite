@@ -29,9 +29,13 @@ const arabicTextIncludes = (haystack = "", needle = "") => {
   );
 };
 
-async function createPersonalNotification(recipientId, data = {}) {
+function deterministicNotificationId(key) {
+  return crypto.createHash("sha256").update(String(key)).digest("hex");
+}
+
+async function createPersonalNotification(recipientId, data = {}, idempotencyKey = "") {
   if (!recipientId) return null;
-  return db.collection("notifications").add({
+  const payload = {
     recipientId,
     title: String(data.title || "الدليل الشامل").slice(0, 120),
     body: String(data.body || "").slice(0, 500),
@@ -42,7 +46,23 @@ async function createPersonalNotification(recipientId, data = {}) {
     time: FieldValue.serverTimestamp(),
     read: false,
     ...(data.meta || {}),
-  });
+  };
+
+  if (!idempotencyKey) return db.collection("notifications").add(payload);
+
+  const notificationRef = db.collection("notifications").doc(
+    deterministicNotificationId(`${idempotencyKey}:${recipientId}`)
+  );
+  try {
+    await notificationRef.create(payload);
+  } catch (error) {
+    // Firestore event handlers can retry. If this exact event already created its
+    // notification, treat the duplicate create as success instead of generating
+    // another document (and another push notification).
+    if (error?.code === 6 || error?.code === "already-exists") return notificationRef;
+    throw error;
+  }
+  return notificationRef;
 }
 
 const notifyProfileView = onCall(async (request) => {
@@ -106,7 +126,7 @@ const notifyOnChatMessage = onDocumentCreated("chats/{chatId}/messages/{messageI
     type: "message",
     url: "/",
     meta: { chatId: event.params.chatId, senderId },
-  });
+  }, `chat-message:${event.id}`);
 });
 
 const notifyOnFollowerCreated = onDocumentCreated("members/{followingId}/followers/{followerId}", async (event) => {
@@ -123,7 +143,7 @@ const notifyOnFollowerCreated = onDocumentCreated("members/{followingId}/followe
     type: "follow",
     url: `/?member=${encodeURIComponent(followerId)}`,
     meta: { followerId, followingId },
-  });
+  }, `follower-created:${event.id}`);
 });
 
 const notifyOnServiceRequest = onDocumentCreated("serviceRequests/{requestId}", async (event) => {
@@ -157,7 +177,7 @@ const notifyOnServiceRequest = onDocumentCreated("serviceRequests/{requestId}", 
     type: "serviceRequest",
     url: "/",
     meta: { serviceRequestId: event.params.requestId },
-  })));
+  }, `service-request:${event.id}`)));
 });
 
 module.exports = {
