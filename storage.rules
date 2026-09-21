@@ -18,6 +18,7 @@ service firebase.storage {
     function isAdmin() {
       return signedIn()
         && firestore.exists(/databases/(default)/documents/members/$(request.auth.uid))
+        && ('isAdmin' in firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data)
         && firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data.isAdmin == true;
     }
 
@@ -39,13 +40,7 @@ service firebase.storage {
       allow write: if signedIn() && request.auth.uid == uid && imageUnder8MB();
     }
 
-    // أغلفة بصيغة covers/{uid}
-    match /covers/{uid} {
-      allow read: if true;
-      allow write: if signedIn() && request.auth.uid == uid && imageUnder8MB();
-    }
-
-    // أغلفة بصيغة covers/{uid}_{timestamp}
+    // الأغلفة: يدعم covers/{uid} و covers/{uid}_{timestamp}
     match /covers/{fileName} {
       allow read: if true;
       allow write: if signedIn()
