@@ -1,0 +1,43 @@
+name: Roll Back Partial Functions Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/rollback-partial-functions.yml
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_PROJECT_ID: eldalel-elshamel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Configure Firebase credentials
+        shell: bash
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+      - name: Remove newly-created event triggers from partial deploy
+        run: >-
+          npx firebase-tools functions:delete
+          notifyOnChatMessage notifyOnFollowerCreated notifyOnServiceRequest
+          updateFollowersOnCreate updateFollowersOnDelete
+          updateSavesOnCreate updateSavesOnDelete
+          updateRatingOnReviewCreate
+          updateJobApplicantsOnCreate updateJobApplicantsOnDelete
+          --region europe-west1 --project "$FIREBASE_PROJECT_ID" --force
+      - name: Cleanup credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
