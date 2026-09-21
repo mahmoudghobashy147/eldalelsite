@@ -78,7 +78,7 @@ jobs:
           java-version: '21'
 
       - name: Re-test Firestore and Storage rules
-        run: npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js"
+        run: npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js && node scripts/test-catalog-rules.js"
 
       - name: Deploy Firestore and Storage rules
         run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only firestore:rules,storage --non-interactive
