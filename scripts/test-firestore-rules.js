@@ -97,10 +97,11 @@ async function main() {
     await assertFails(updateDoc(doc(bob, "members", "bob"), { plan: "vip" }));
 
     // ── Shared engagement counters ───────────────────────────────
-    await assertSucceeds(updateDoc(doc(anon, "members", "bob"), { views: 1 }));
+    await assertFails(updateDoc(doc(anon, "members", "bob"), { views: 1 }));
     await assertFails(updateDoc(doc(anon, "members", "bob"), { views: 10 }));
-    await assertSucceeds(updateDoc(doc(anon, "members", "bob"), { calls: 1 }));
-    await assertSucceeds(updateDoc(doc(anon, "members", "bob"), { waMessages: 1 }));
+    await assertFails(updateDoc(doc(anon, "members", "bob"), { calls: 1 }));
+    await assertFails(updateDoc(doc(anon, "members", "bob"), { waMessages: 1 }));
+    await assertFails(updateDoc(doc(alice, "members", "bob"), { views: 1 }));
     await assertFails(updateDoc(doc(anon, "members", "bob"), { name: "Hacked" }));
 
     await assertFails(updateDoc(doc(anon, "members", "bob"), { saves: 1 }));

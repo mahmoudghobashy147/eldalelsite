@@ -120,9 +120,7 @@ service cloud.firestore {
           && memberProtectedFieldsUnchanged()
           && memberEngagementFieldsUnchanged()
           && ownPlanChangeAllowed())
-        || plusOne('views')
-        || plusOne('calls')
-        || plusOne('waMessages')
+        // views/calls/waMessages are server-managed by recordMemberInteraction.
         // saves aggregate is server-managed from saved-document triggers.
         // followersCount aggregate is server-managed from follower-document triggers.
         // rating/reviews aggregates are server-managed from review triggers;

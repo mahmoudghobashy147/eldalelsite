@@ -649,8 +649,9 @@ const DB = {
   },
   async trackStat(memberId, stat) {
     try {
-      await updateDoc(doc(db,"members",memberId), { [stat]: increment(1) });
-    } catch(e) { console.log("trackStat error:", e); }
+      const recordMemberInteraction = httpsCallable(functions, "recordMemberInteraction");
+      await recordMemberInteraction({ memberId, stat });
+    } catch(e) { console.log("trackStat error:", e?.message || e); }
   },
   async getMemberStats(memberId) {
     try {
