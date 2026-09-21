@@ -22,7 +22,15 @@ const normalizePin = (value) => String(value ?? "")
   .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
   .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
 
-const hashPin = (pin, saltHex) => crypto.scryptSync(normalizePin(pin), Buffer.from(saltHex, "hex"), 64).toString("hex");
+const rawHashPin = (pin, saltHex) => crypto.scryptSync(String(pin), Buffer.from(saltHex, "hex"), 64).toString("hex");
+const hashPin = (pin, saltHex) => rawHashPin(normalizePin(pin), saltHex);
+const pinVariants = (value) => {
+  const raw = String(value ?? "").trim();
+  const ascii = normalizePin(raw);
+  const arabic = ascii.replace(/[0-9]/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
+  const persian = ascii.replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
+  return [...new Set([raw, ascii, arabic, persian])];
+};
 
 async function requireAdmin(uid) {
   if (!uid) throw new HttpsError("unauthenticated", "لازم تكون مسجل دخول");
@@ -136,9 +144,11 @@ exports.secureAdminLogin = onCall(async (request) => {
   }
 
   const expected = Buffer.from(String(secret.pinHash), "hex");
-  const actual = Buffer.from(hashPin(pin, String(secret.salt)), "hex");
   const phoneOk = phone === normalizePhone(secret.phone);
-  const pinOk = expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  const pinOk = pinVariants(request.data?.pin).some((candidate) => {
+    const actual = Buffer.from(rawHashPin(candidate, String(secret.salt)), "hex");
+    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  });
 
   if (!phoneOk || !pinOk) {
     await attemptRef.set({
