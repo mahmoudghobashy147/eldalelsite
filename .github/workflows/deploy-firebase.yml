@@ -1,0 +1,84 @@
+name: Deploy Firebase Backend
+
+# نشر يدوي فقط. افصلنا Functions عن Rules لأن ترتيب تفعيل أمان الأدمن مهم.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What do you want to deploy?
+        required: true
+        type: choice
+        options:
+          - functions
+          - rules
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+      FIREBASE_PROJECT_ID: eldalel-elshamel
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify Firebase credential secret
+        shell: bash
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT_BASE64 is not configured in GitHub Actions secrets"
+            exit 1
+          fi
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Decode Firebase service account
+        shell: bash
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/firebase-service-account.json"
+          test -s "$RUNNER_TEMP/firebase-service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Validate Functions
+        if: ${{ inputs.target == 'functions' }}
+        shell: bash
+        run: |
+          npm ci --prefix functions
+          node --check functions/index.js
+
+      - name: Deploy Functions
+        if: ${{ inputs.target == 'functions' }}
+        run: npx --yes firebase-tools@15.30.2 deploy --project "$FIREBASE_PROJECT_ID" --only functions --non-interactive
+
+      - name: Setup Java 21 for rules emulator
+        if: ${{ inputs.target == 'rules' }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install rules test dependencies
+        if: ${{ inputs.target == 'rules' }}
+        run: npm install
+
+      - name: Re-test Firestore and Storage rules before production deploy
+        if: ${{ inputs.target == 'rules' }}
+        run: npx --yes firebase-tools@15.30.2 emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js"
+
+      - name: Deploy Firestore and Storage rules
+        if: ${{ inputs.target == 'rules' }}
+        run: npx --yes firebase-tools@15.30.2 deploy --project "$FIREBASE_PROJECT_ID" --only firestore:rules,storage --non-interactive
+
+      - name: Remove Firebase credential file
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
