@@ -15,11 +15,14 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const notification = payload.notification || {};
+  // لو الرسالة فيها notification payload فـ FCM بيعرضها تلقائيًا في الخلفية.
+  // عدم عرض نسخة ثانية هنا يمنع ظهور نفس الإشعار مرتين للمستخدم.
+  if (payload.notification) return;
+
   const data = payload.data || {};
-  const title = notification.title || data.title || 'الدليل الشامل';
+  const title = data.title || 'الدليل الشامل';
   const options = {
-    body: notification.body || data.body || '',
+    body: data.body || '',
     data: {
       url: data.url || data.link || '/'
     }
