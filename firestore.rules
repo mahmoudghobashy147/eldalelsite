@@ -25,6 +25,7 @@ service cloud.firestore {
     function isAdmin() {
       return signedIn()
         && exists(memberDoc(request.auth.uid))
+        && ('isAdmin' in get(memberDoc(request.auth.uid)).data)
         && get(memberDoc(request.auth.uid)).data.isAdmin == true;
     }
 
@@ -58,7 +59,7 @@ service cloud.firestore {
     // ----------------------------------------------------------
     match /members/{memberId} {
       // الملفات المعتمدة عامة، وصاحب الحساب/الأدمن يقدر يشوف حسابه حتى لو Pending.
-      allow get, list: if resource.data.status == 'approved' || self(memberId) || isAdmin();
+      allow get, list: if (('status' in resource.data) && resource.data.status == 'approved') || self(memberId) || isAdmin();
 
       // إنشاء الحساب لنفس UID فقط، وممنوع يخلق نفسه Admin/Verified أو يخلق اشتراك معتمد.
       allow create: if self(memberId)
