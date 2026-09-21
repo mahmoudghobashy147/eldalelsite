@@ -71,6 +71,34 @@ replaceOnce(
 "gate AdminScreen mount behind verified admin"
 );
 
+// 4) The browser must never be able to create/promote an administrator account.
+// Admin authentication may sign into an existing Firebase account, but the
+// authoritative member record must already exist with isAdmin === true.
+replaceOnce(
+`        let cred;
+        try {
+          cred = await DB.signIn(adminEmail, authPass);
+        } catch (signInErr) {
+          // أول مرة بس: نعمل حساب Firebase حقيقي للأدمن لو لسه مش موجود
+          if (signInErr.code === "auth/user-not-found" || signInErr.code === "auth/invalid-credential") {
+            cred = await DB.signUp(adminEmail, authPass, { name:"الأدمن", phone: cfg.adminPhone||form.phone, type:"vip" });
+          } else { throw signInErr; }
+        }
+        // نتأكد إن مستند العضو الخاص بالأدمن معلّم isAdmin:true (عشان قاعدة isAdmin() في Firestore تشتغل)
+        await setDoc(doc(db,"members",cred.user.uid), { isAdmin:true, name:"الأدمن", phone: cfg.adminPhone||form.phone, type:"vip", status:"approved" }, { merge:true });
+        const adminUser = { uid:cred.user.uid, email:adminEmail, phone:cfg.adminPhone||form.phone, displayName:"الأدمن", isAdmin:true };`,
+`        const cred = await DB.signIn(adminEmail, authPass);
+        // ممنوع إنشاء حساب أدمن أو ترقية عضو من المتصفح. الحساب لازم يكون
+        // موجود ومعلّم isAdmin:true مسبقًا في Firestore.
+        const adminMemberSnap = await getDoc(doc(db, "members", cred.user.uid));
+        if (!adminMemberSnap.exists() || adminMemberSnap.data()?.isAdmin !== true) {
+          await DB.signOut();
+          throw new Error("هذا الحساب غير مصرح له بدخول لوحة الإدارة");
+        }
+        const adminUser = { uid:cred.user.uid, email:adminEmail, phone:cfg.adminPhone||form.phone, displayName:"الأدمن", isAdmin:true };`,
+"prevent browser-side admin creation and self-promotion"
+);
+
 if (changed) {
   fs.writeFileSync(appPath, source, "utf8");
   console.log("Safe patches written to src/App.jsx");
