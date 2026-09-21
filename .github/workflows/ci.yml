@@ -20,7 +20,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install locked web dependencies
+      - name: Install locked web and test dependencies
         run: npm ci
 
       - name: Build web app
@@ -47,4 +47,4 @@ jobs:
       # Compile staged Firestore/Storage rules and execute behavioral authorization tests
       # against local emulators only. This never touches the production Firebase project.
       - name: Validate Firebase security rules behavior
-        run: npx --yes firebase-tools@latest emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js"
+        run: npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js"
