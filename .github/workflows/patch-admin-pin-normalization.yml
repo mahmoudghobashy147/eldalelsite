@@ -1,0 +1,73 @@
+name: Patch Admin PIN Normalization
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-admin-pin-normalization.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch admin PIN normalization
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('functions/index.js')
+          s = p.read_text(encoding='utf-8')
+
+          old = '''const normalizePhone = (value) => {
+            let digits = String(value || "").replace(/\\D/g, "");
+            if (digits.startsWith("20") && digits.length >= 12) digits = "0" + digits.slice(2);
+            return digits;
+          };
+
+          const hashPin = (pin, saltHex) => crypto.scryptSync(String(pin), Buffer.from(saltHex, "hex"), 64).toString("hex");'''
+          new = '''const normalizePhone = (value) => {
+            let digits = String(value || "").replace(/\\D/g, "");
+            if (digits.startsWith("20") && digits.length >= 12) digits = "0" + digits.slice(2);
+            return digits;
+          };
+
+          const normalizePin = (value) => String(value ?? "")
+            .trim()
+            .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+            .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)));
+
+          const hashPin = (pin, saltHex) => crypto.scryptSync(normalizePin(pin), Buffer.from(saltHex, "hex"), 64).toString("hex");'''
+          if old not in s:
+              raise SystemExit('normalizePhone/hashPin anchor not found')
+          s = s.replace(old, new, 1)
+
+          replacements = [
+            ('const suppliedPin = String(request.data?.pin || "");', 'const suppliedPin = normalizePin(request.data?.pin);'),
+            ('const legacyPin = String(appData.adminPin || "");', 'const legacyPin = normalizePin(appData.adminPin);'),
+            ('const pin = String(request.data?.pin || "");', 'const pin = normalizePin(request.data?.pin);'),
+            ('const newPin = String(request.data?.newPin || "");', 'const newPin = normalizePin(request.data?.newPin);'),
+          ]
+          for old2, new2 in replacements:
+              if old2 not in s:
+                  raise SystemExit(f'anchor not found: {old2}')
+              s = s.replace(old2, new2, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Validate Functions syntax
+        run: node -c functions/index.js
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add functions/index.js
+          git commit -m "Normalize Arabic digits in admin PIN login"
+          git push
