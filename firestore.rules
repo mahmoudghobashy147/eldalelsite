@@ -32,7 +32,7 @@ service cloud.firestore {
     }
 
     function memberProtectedFieldsUnchanged() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasNone([
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
         'uid',
         'isAdmin',
         'status',
@@ -49,7 +49,7 @@ service cloud.firestore {
     }
 
     function memberEngagementFieldsUnchanged() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasNone([
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
         'views', 'calls', 'waMessages', 'saves', 'followersCount', 'rating', 'reviews'
       ]);
     }
