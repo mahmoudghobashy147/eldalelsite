@@ -15,13 +15,16 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
-    "patch:safety": "node scripts/apply-safe-patches.js && node scripts/apply-plan-field-patches.js",
+    "patch:safety": "node scripts/apply-safe-patches.js && node scripts/apply-plan-field-patches.js && node scripts/apply-chat-rule-patches.js",
     "prestart": "npm run patch:safety",
     "start": "react-scripts start",
     "prebuild": "npm run patch:safety",
     "build": "react-scripts build",
     "sitemap": "node generate-sitemap.js",
     "test": "react-scripts test",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-daleel-rules \"node scripts/test-firestore-rules.js\"",
+    "test:storage-rules": "node scripts/test-storage-rules.js",
+    "test:all-rules": "npm run test:rules && npm run test:storage-rules",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build"
@@ -56,6 +59,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2",
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase-tools": "^15.30.2",
     "gh-pages": "^6.3.0",
     "react-snap": "^1.23.0"
   }
