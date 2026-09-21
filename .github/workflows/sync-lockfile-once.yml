@@ -1,4 +1,4 @@
-name: Sync root package lock once
+name: Sync Functions package lock once
 
 on:
   push:
@@ -23,22 +23,29 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: functions/package-lock.json
 
-      - name: Synchronize lock metadata
+      - name: Synchronize Functions lock metadata
+        working-directory: functions
         run: npm install --package-lock-only --ignore-scripts
 
-      - name: Verify clean locked install
+      - name: Verify clean locked Functions install
+        working-directory: functions
         run: npm ci --ignore-scripts
 
-      - name: Commit lockfile
+      - name: Verify patched parser is resolved
+        working-directory: functions
+        run: npm ls fast-xml-parser
+
+      - name: Commit Functions lockfile
         shell: bash
         run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "Lockfile already synchronized"
+          if git diff --quiet -- functions/package-lock.json; then
+            echo "Functions lockfile already synchronized"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "Sync lock after dependency classification"
+          git add functions/package-lock.json
+          git commit -m "Sync Functions lock with patched parser"
           git push origin HEAD:main
