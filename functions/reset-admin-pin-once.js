@@ -32,7 +32,7 @@ const normalizePhone = (value) => {
   const phone = normalizePhone(appData.adminPhone || secret.phone || '');
   if (!phone) throw new Error('Admin phone is missing');
 
-  // Keep the server-side PIN verifier and Firebase Auth password in sync.
+  const authUser = await admin.auth().getUser(adminUid);
   await admin.auth().updateUser(adminUid, { password: newPin });
 
   const salt = crypto.randomBytes(24).toString('hex');
@@ -51,6 +51,7 @@ const normalizePhone = (value) => {
 
   console.log('ADMIN_PIN_RESET_SUCCESS=true');
   console.log('ADMIN_FIREBASE_AUTH_PASSWORD_SYNCED=true');
+  console.log('ADMIN_AUTH_EMAIL=' + String(authUser.email || ''));
 })().catch((err) => {
   console.error('ADMIN_PIN_RESET_ERROR=' + (err?.message || err));
   process.exit(1);
