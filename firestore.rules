@@ -305,20 +305,6 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------
-    // PRODUCT CATALOG + STORES
-    // Public visitors may only read published entries. Management stays admin-only.
-    // ----------------------------------------------------------
-    match /products/{productId} {
-      allow read: if resource.data.get('status', '') == 'active' || isAdmin();
-      allow create, update, delete: if isAdmin();
-    }
-
-    match /stores/{storeId} {
-      allow read: if resource.data.get('status', '') == 'active' || isAdmin();
-      allow create, update, delete: if isAdmin();
-    }
-
-    // ----------------------------------------------------------
     // PAYMENTS / ADS
     // ----------------------------------------------------------
     match /payments/{paymentId} {
