@@ -25,8 +25,8 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Install web dependencies
-        run: npm install
+      - name: Install locked web dependencies
+        run: npm ci
 
       - name: Fix executable permissions
         run: chmod -R +x node_modules/.bin
