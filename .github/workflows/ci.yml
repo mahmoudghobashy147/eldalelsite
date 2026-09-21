@@ -20,8 +20,10 @@ jobs:
           node-version: 22
           cache: npm
 
+      # package-lock.json في الجذر محتاج إعادة توليد قبل ما نقدر نعتمد npm ci بأمان.
+      # بنستخدم نفس أسلوب build-apk الحالي مؤقتًا عشان الـ CI يختبر البناء الفعلي بدل ما يقف قبل الاختبار.
       - name: Install web dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build web app
         run: npm run build
