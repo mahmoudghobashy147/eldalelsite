@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import App from "./App";
+import PremiumHome from "./PremiumHome";
 
 // ============================================================
 // استرجاع المسار الأصلي بعد التحويل من صفحة 404.html
@@ -24,14 +25,20 @@ import App from "./App";
 })();
 
 const rootElement = document.getElementById("root");
+const params = new URLSearchParams(window.location.search);
+const isPremiumHome = window.location.pathname === "/" && params.get("app") !== "1";
 
-// ============================================================
-// دعم react-snap: لو الصفحة جاية من نسخة HTML مُجهّزة مسبقًا (فيها محتوى فعلي
-// جوه #root وليست فاضية)، نستخدم hydrateRoot بدل createRoot، عشان React
-// "يتبنى" الـ HTML الموجود بدل ما يمسحه ويعيد بناءه من الصفر. ده اللي بيخلي
-// المحتوى ظاهر فورًا لمحركات البحث والبوتات قبل ما الجافاسكريبت حتى يشتغل.
-// ============================================================
-if (rootElement && rootElement.hasChildNodes()) {
+// الصفحة الرئيسية الجديدة الفاخرة للدليل الشامل.
+// ?app=1 يفتح التطبيق الداخلي القديم بالكامل للحساب، الإشعارات، الإدارة وباقي الوظائف.
+if (isPremiumHome) {
+  if (rootElement) rootElement.innerHTML = "";
+  createRoot(rootElement).render(<PremiumHome />);
+} else if (rootElement && rootElement.hasChildNodes()) {
+  // ============================================================
+  // دعم react-snap: لو الصفحة جاية من نسخة HTML مُجهّزة مسبقًا (فيها محتوى فعلي
+  // جوه #root وليست فاضية)، نستخدم hydrateRoot بدل createRoot، عشان React
+  // "يتبنى" الـ HTML الموجود بدل ما يمسحه ويعيد بناءه من الصفر.
+  // ============================================================
   hydrateRoot(rootElement, <App />);
 } else {
   createRoot(rootElement).render(<App />);
