@@ -1,17 +1,11 @@
 name: Deploy Website to GitHub Pages
 
+# يدوي فقط: شغّله بعد نشر Cloud Functions الآمنة.
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
   contents: write
-
-concurrency:
-  group: deploy-website
-  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -21,7 +15,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -47,9 +40,5 @@ jobs:
 
       - name: Publish build to gh-pages
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx gh-pages \
-            -d build \
-            -m "Deploy web ${GITHUB_SHA}" \
-            -r "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx gh-pages -d build -m "Deploy web ${GITHUB_SHA}"
