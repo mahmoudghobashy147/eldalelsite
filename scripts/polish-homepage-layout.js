@@ -13,30 +13,21 @@ const Ad3DCard = ({ ad, variant="hero", darkMode, style }) => {
 
   return (
     <div
-      onClick={() => window.open(ad.link || (ad.phone ? \\`tel:\\${ad.phone}\\` : '#'), '_self')}
+      onClick={() => window.open(ad.link || (ad.phone ? "tel:" + ad.phone : "#"), "_self")}
       style={{
-        position:"relative",
-        borderRadius:radius,
-        overflow:"hidden",
-        cursor:"pointer",
-        minHeight,
+        position:"relative", borderRadius:radius, overflow:"hidden", cursor:"pointer", minHeight,
         background: darkMode ? "#07192B" : "#FFFFFF",
-        border:\\`1px solid \\${darkMode ? "rgba(201,168,76,.22)" : "rgba(10,49,97,.10)"}\\`,
+        border:"1px solid " + (darkMode ? "rgba(201,168,76,.22)" : "rgba(10,49,97,.10)"),
         boxShadow: darkMode ? "0 16px 42px rgba(0,0,0,.32)" : "0 16px 42px rgba(15,23,42,.12)",
-        transition:"transform .22s ease, box-shadow .22s ease",
-        ...style,
+        transition:"transform .22s ease, box-shadow .22s ease", ...style,
       }}
       onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-4px)";e.currentTarget.style.boxShadow=darkMode?"0 22px 52px rgba(0,0,0,.42)":"0 22px 52px rgba(15,23,42,.16)";}}
       onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow=darkMode?"0 16px 42px rgba(0,0,0,.32)":"0 16px 42px rgba(15,23,42,.12)";}}
     >
       {ad.imageUrl ? (
         <>
-          <img
-            src={ad.imageUrl}
-            alt={ad.title || "إعلان"}
-            style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",display:"block"}}
-          />
-          <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(0,0,0,.02) 45%,rgba(0,0,0,.58) 100%)"}}/>
+          <img src={ad.imageUrl} alt={ad.title || "إعلان"} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",display:"block"}}/>
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(0,0,0,.01) 48%,rgba(0,0,0,.62) 100%)"}}/>
           <div style={{position:"absolute",top:12,right:12,background:"rgba(4,22,39,.82)",backdropFilter:"blur(7px)",color:C.gold,border:"1px solid rgba(255,193,7,.45)",borderRadius:999,padding:"5px 10px",fontSize:10,fontWeight:800}}>إعلان</div>
           <div style={{position:"absolute",right:14,left:14,bottom:13,display:"flex",justifyContent:"space-between",alignItems:"end",gap:12}}>
             <div style={{minWidth:0}}>
@@ -47,7 +38,7 @@ const Ad3DCard = ({ ad, variant="hero", darkMode, style }) => {
           </div>
         </>
       ) : (
-        <div style={{minHeight,background:\\`linear-gradient(135deg,\\${ad.color1||C.navyDeep},\\${ad.color2||C.navy})\\`,padding:isHero?"24px 22px":"18px 16px",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+        <div style={{minHeight,background:"linear-gradient(135deg," + (ad.color1||C.navyDeep) + "," + (ad.color2||C.navy) + ")",padding:isHero?"24px 22px":"18px 16px",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
           <div>
             <div style={{fontSize:isHero?38:30,marginBottom:10}}>{ad.emoji||"🏢"}</div>
             <div style={{fontFamily:"'Cairo'",fontWeight:900,fontSize:isHero?19:14,color:"white",marginBottom:5}}>{ad.title||"إعلان"}</div>
@@ -77,16 +68,16 @@ const partnerReplacement = String.raw`const PartnerCard = ({ member, onClick, da
   return (
     <div ref={ref} onClick={()=>onClick(member)} style={{
       background:dark?C.cardBg:"white",borderRadius:20,overflow:"hidden",cursor:"pointer",
-      border:\\`1px solid \\${dark?"rgba(201,168,76,.16)":"#E7ECF2"}\\`,
+      border:"1px solid " + (dark?"rgba(201,168,76,.16)":"#E7ECF2"),
       boxShadow:dark?"0 14px 34px rgba(0,0,0,.24)":"0 14px 34px rgba(15,23,42,.09)",
       opacity:visible?1:0,transform:visible?"translateY(0)":"translateY(12px)",transition:"all .3s ease"
     }}
       onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-5px)";e.currentTarget.style.boxShadow=dark?"0 20px 42px rgba(0,0,0,.34)":"0 20px 42px rgba(15,23,42,.14)";}}
       onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow=dark?"0 14px 34px rgba(0,0,0,.24)":"0 14px 34px rgba(15,23,42,.09)";}}
     >
-      <div style={{height:138,position:"relative",background:\\`linear-gradient(135deg,\\${C.navyDeep},\\${C.navy})\\`}}>
+      <div style={{height:138,position:"relative",background:"linear-gradient(135deg," + C.navyDeep + "," + C.navy + ")"}}>
         {cover ? <img src={cover} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : <div style={{width:"100%",height:"100%",display:"grid",placeItems:"center",color:C.gold}}><TradeIcon id="company" size={48} strokeWidth={1.4}/></div>}
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(0,0,0,.02),rgba(0,0,0,.48))"}}/>
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(0,0,0,.01),rgba(0,0,0,.48))"}}/>
         <div style={{position:"absolute",top:10,right:10,background:isElite?"#8B5CF6":C.gold,color:isElite?"white":C.navyDeep,borderRadius:999,padding:"5px 10px",fontSize:10,fontWeight:900}}>{isElite?"👑 شريك نخبة":"🏢 شركة مميزة"}</div>
       </div>
       <div style={{padding:"14px 15px 15px"}}>
@@ -107,7 +98,7 @@ src = src.replace(partnerPattern, partnerReplacement + '\n\n// =================
 
 const desktopHeroReplacement = String.raw`      {/* 🖥️ DESKTOP HERO — واجهة ثابتة فخمة منفصلة عن الإعلانات */}
       {isDesktop && (
-        <div style={{background:\\`radial-gradient(circle at 20% 20%,rgba(255,193,7,.10),transparent 28%),linear-gradient(135deg,\\${C.navyDeep},#082A45 58%,#0A3655)\\`,borderBottom:"1px solid rgba(255,193,7,.14)"}}>
+        <div style={{background:"radial-gradient(circle at 20% 20%,rgba(255,193,7,.10),transparent 28%),linear-gradient(135deg," + C.navyDeep + ",#082A45 58%,#0A3655)",borderBottom:"1px solid rgba(255,193,7,.14)"}}>
           <div className="desktop-container" style={{padding:"46px 28px 34px"}}>
             <div style={{display:"grid",gridTemplateColumns:"1.15fr .85fr",gap:34,alignItems:"center"}}>
               <div>
@@ -147,10 +138,9 @@ const desktopHeroReplacement = String.raw`      {/* 🖥️ DESKTOP HERO — و�
             <div><div className="section-title" style={{color:tc,fontSize:20}}>إعلانات مميزة</div><div className="gold-line"/></div>
             <div style={{fontSize:11,color:sub}}>اضغط على الإعلان للتفاصيل</div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:homeAds.length>=5?"1fr 1fr 1.45fr 1fr 1fr":\\`repeat(\\${Math.min(homeAds.length,4)},1fr)\\`,gap:12,alignItems:"stretch"}}>
+          <div style={{display:"grid",gridTemplateColumns:homeAds.length>=5?"1fr 1fr 1.45fr 1fr 1fr":"repeat(" + Math.min(homeAds.length,4) + ",1fr)",gap:12,alignItems:"stretch"}}>
             {homeAds.slice(0,5).map((ad,i)=><Ad3DCard key={ad.id} ad={ad} variant={homeAds.length>=5&&i===2?"hero":"small"} darkMode={darkMode} style={{minHeight:homeAds.length>=5&&i===2?250:220}}/>)}
           </div>
-          {homeAds.length>5 && <div style={{display:"flex",justifyContent:"center",gap:5,marginTop:10}}>{homeAds.slice(0,8).map((ad,i)=><div key={ad.id} onClick={()=>setHeroAdIdx(i)} style={{width:i===heroAdIdx?18:6,height:6,borderRadius:4,background:i===heroAdIdx?C.gold:"#CDD5DF",cursor:"pointer"}}/>)}</div>}
         </div>
       )}
 
@@ -160,8 +150,7 @@ const desktopHeroPattern = /      \{\/\* ═+[\s\S]*?(?=      \{\/\* أقسام 
 if (!desktopHeroPattern.test(src)) throw new Error('Desktop hero block not found');
 src = src.replace(desktopHeroPattern, desktopHeroReplacement);
 
-// حافظ على المنشورات كما هي، فقط أضف id للقسم حتى زر "منشورات" الرئيسي يوصل له مباشرة.
 src = src.replace('      {/* Posts Feed */}\n      <div className={isDesktop?"desktop-container":"section"}', '      {/* Posts Feed */}\n      <div id="home-posts" className={isDesktop?"desktop-container":"section"}');
 
 fs.writeFileSync(file, src, 'utf8');
-console.log('✅ Homepage layout polished: ads, hero and company cards updated; posts and core sections preserved');
+console.log('✅ Homepage polished; posts and core sections preserved');
