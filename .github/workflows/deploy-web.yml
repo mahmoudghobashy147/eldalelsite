@@ -1,11 +1,17 @@
 name: Deploy Website to GitHub Pages
 
-# يدوي فقط: شغّله بعد نشر Cloud Functions الآمنة.
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: deploy-website
+  cancel-in-progress: true
 
 jobs:
   deploy:
