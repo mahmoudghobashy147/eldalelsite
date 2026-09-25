@@ -1,1 +1,1 @@
-deploy 2026-09-22 registration-profile-permission-fix
+deploy 2026-09-21 owner-catalog-categories
