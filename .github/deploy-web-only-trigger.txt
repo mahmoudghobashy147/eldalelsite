@@ -1,1 +1,1 @@
-deploy production-ready final pass 2026-09-26 15:52
+deploy visibly redesigned homepage 2026-09-26 17:08
