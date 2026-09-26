@@ -16,6 +16,26 @@ const App = lazy(() => import("./App"));
   } catch (e) {}
 })();
 
+// توحيد الموقع على مسارات واضحة ومنع فتح الواجهة القديمة عبر ?app=1.
+(function normalizeLegacyNavigation() {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("app") !== "1") return;
+    const legacyHash = (url.hash || "").replace(/^#/, "").toLowerCase();
+    const map = {
+      login: "/login",
+      signin: "/login",
+      register: "/register",
+      notifications: "/notifications",
+      suppliers: "/suppliers",
+      posts: "/#feed",
+      menu: "/#sections"
+    };
+    const target = map[legacyHash] || "/";
+    window.history.replaceState(null, "", target);
+  } catch (e) {}
+})();
+
 const rootElement = document.getElementById("root");
 const path = window.location.pathname.replace(/\/+$/, "") || "/";
 
@@ -23,13 +43,12 @@ const loading = <div style={{minHeight:"100vh",display:"grid",placeItems:"center
 
 let view;
 if (path === "/") {
-  // مسار رئيسي واحد فقط: لا يوجد وضع قديم بـ ?app=1 بعد الآن.
   view = <HomeLanding />;
 } else if (path === "/login" || path === "/signin") {
-  // صفحة دخول مستقلة وخفيفة لا تحمل التطبيق القديم بالكامل.
+  // صفحة دخول مستقلة وخفيفة؛ التطبيق الكبير لا يتم تحميله هنا.
   view = <AuthPage />;
 } else {
-  // الصفحات الوظيفية القديمة تُحمّل فقط عند الحاجة لتقليل حجم الصفحة الرئيسية.
+  // باقي الصفحات الوظيفية تُحمّل عند الحاجة فقط لتقليل زمن وحجم التحميل الأول.
   view = <Suspense fallback={loading}><App /></Suspense>;
 }
 
