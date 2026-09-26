@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
+
+:root{
+  --daleel-navy:#06243b;
+  --daleel-navy-2:#0b3554;
+  --daleel-navy-3:#123f61;
+  --daleel-gold:#d7aa43;
+  --daleel-gold-2:#f0cf7a;
+  --daleel-cream:#f8f5ef;
+  --daleel-white:#fff;
+  --daleel-text:#10283d;
+  --daleel-muted:#6d7d8a;
+  --daleel-border:#e8e2d7;
+  --daleel-shadow:0 12px 34px rgba(6,36,59,.10);
+}
+
+html{scroll-behavior:smooth;background:var(--daleel-cream)}
+body,#root{font-family:'Cairo',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif!important;background:var(--daleel-cream);color:var(--daleel-text)}
+*{box-sizing:border-box}
+button,input,select,textarea{font-family:inherit!important}
+button{transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+button:not(:disabled):hover{filter:brightness(1.02)}
+button:not(:disabled):active{transform:scale(.985)}
+input,select,textarea{outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--daleel-gold)!important;box-shadow:0 0 0 3px rgba(215,170,67,.13)!important}
+
+/* Keep old application visually aligned with the new homepage without changing its logic. */
+.desktop-topbar{background:var(--daleel-navy)!important;color:#fff!important}
+.desktop-nav{background:#fff!important;border-bottom:1px solid var(--daleel-border)!important;box-shadow:0 5px 22px rgba(6,36,59,.06)!important}
+.desktop-nav-link.active{color:var(--daleel-gold)!important}
+.desktop-container{max-width:1440px!important;margin:auto!important}
+.card,.member-card,.post-card,.profile-card,.service-card{border-color:var(--daleel-border)!important;box-shadow:0 8px 24px rgba(6,36,59,.07)!important;border-radius:16px!important}
+.btn-primary{background:linear-gradient(135deg,var(--daleel-gold),var(--daleel-gold-2))!important;color:var(--daleel-navy)!important;border:none!important;box-shadow:0 7px 18px rgba(215,170,67,.22)!important}
+.btn-outline{border-color:var(--daleel-gold)!important;color:var(--daleel-navy)!important;background:#fff!important}
+
+::-webkit-scrollbar{width:9px;height:8px}
+::-webkit-scrollbar-track{background:#edf1f4}
+::-webkit-scrollbar-thumb{background:#b8a16d;border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:#9d854f}
+
+@media(max-width:759px){
+  .desktop-nav{box-shadow:none!important}
+  button{min-height:40px}
+}
