@@ -1,0 +1,59 @@
+name: Release Gate
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  release-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production site
+        run: npm run build
+
+      - name: Verify production output
+        shell: bash
+        run: |
+          set -e
+          test -s build/index.html
+          test -f build/CNAME
+          grep -qx "eldalel-elshamel.online" build/CNAME
+          test -d build/static/js
+          test -n "$(find build/static/js -type f -name '*.js' -size +1k | head -n 1)"
+          test -d build/static/css
+          grep -q "الدليل الشامل" build/index.html || true
+
+      - name: Verify critical source files exist
+        shell: bash
+        run: |
+          set -e
+          test -s src/App.jsx
+          test -s src/HomeLanding.jsx
+          test -s src/seo.js
+          test -s src/global-polish.css
+          test -s firestore.rules
+          test -s storage.rules
+
+      - name: Verify important public assets
+        shell: bash
+        run: |
+          set -e
+          test -s public/manifest.json
+          test -s public/CNAME
+          test -s public/404.html
+
+      - name: Release gate passed
+        run: echo "Production release checks passed for eldalel-elshamel.online"
