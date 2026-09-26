@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import App from "./App";
 import HomeLanding from "./HomeLanding";
+import "./global-polish.css";
 
 // ============================================================
 // استرجاع المسار الأصلي بعد التحويل من صفحة 404.html
