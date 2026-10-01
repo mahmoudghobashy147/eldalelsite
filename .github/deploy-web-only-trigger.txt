@@ -1,1 +1,1 @@
-deploy restored modern homepage with live data 2026-10-02 02:39
+rollback to previous stable app 2026-10-02 02:41
