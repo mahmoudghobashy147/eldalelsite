@@ -7,4 +7,5 @@ module.exports = {
   ...require("./engagement-triggers"),
   ...require("./service-requests"),
   ...require("./member-interactions"),
+  ...require("./post-retention"),
 };
