@@ -51,6 +51,8 @@ jobs:
           node --check functions/engagement-triggers.js
           node --check functions/service-requests.js
           node --check functions/member-interactions.js
+          node --check functions/post-retention.js
+          node --check functions/cleanup-expired-posts-now.js
           node --check functions/main.js
 
       - name: Configure Firebase credentials
@@ -67,6 +69,9 @@ jobs:
           node -e 'const f=require(process.argv[1]); if(f.project_id!=="eldalel-elshamel"||!f.private_key||!f.client_email) process.exit(1)' "$RUNNER_TEMP/firebase-service-account.json"
           chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Delete posts and post media older than 30 days now
+        run: node functions/cleanup-expired-posts-now.js
 
       - name: Deploy Cloud Functions first
         run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only functions --non-interactive
