@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import App from "./App";
+import "./image-fallback";
 
 // ============================================================
 // استرجاع المسار الأصلي بعد التحويل من صفحة 404.html
