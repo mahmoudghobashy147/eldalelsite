@@ -4,14 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - .github/recover-deleted-posts-trigger.txt
 
 permissions:
   contents: read
 
 jobs:
   recover:
+    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'Run one-time deleted posts recovery'
     runs-on: ubuntu-latest
     env:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
