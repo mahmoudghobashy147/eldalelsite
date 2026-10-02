@@ -2,6 +2,10 @@ name: Recover Deleted Posts
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/recover-deleted-posts-trigger.txt
 
 permissions:
   contents: read
