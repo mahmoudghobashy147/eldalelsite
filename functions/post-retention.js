@@ -97,50 +97,17 @@ async function deleteExpiredPostDocuments(db, bucket, days = RETENTION_DAYS) {
   let deletedPosts = 0;
 
   deletedPosts += await deleteExpiredByField(db, bucket, "createdAt", cutoff);
-  // دعم المنشورات القديمة التي كانت محفوظة بحقل time فقط.
   deletedPosts += await deleteExpiredByField(db, bucket, "time", cutoff);
 
   return deletedPosts;
-}
-
-async function deleteExpiredOrphanPostMedia(bucket, days = RETENTION_DAYS) {
-  const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
-  let deletedFiles = 0;
-
-  for (const prefix of POST_STORAGE_PREFIXES) {
-    let pageToken;
-    do {
-      const [files, , apiResponse] = await bucket.getFiles({
-        prefix,
-        autoPaginate: false,
-        maxResults: 500,
-        pageToken,
-      });
-
-      for (const file of files) {
-        const createdMs = Date.parse(file.metadata.timeCreated || file.metadata.updated || "");
-        if (Number.isFinite(createdMs) && createdMs <= cutoffMs) {
-          await file.delete({ ignoreNotFound: true }).catch((err) => {
-            console.error("delete orphan media", file.name, err);
-          });
-          deletedFiles += 1;
-        }
-      }
-
-      pageToken = apiResponse?.nextPageToken;
-    } while (pageToken);
-  }
-
-  return deletedFiles;
 }
 
 async function runPostRetentionCleanup() {
   const db = admin.firestore();
   const bucket = admin.storage().bucket(STORAGE_BUCKET);
   const deletedPosts = await deleteExpiredPostDocuments(db, bucket, RETENTION_DAYS);
-  const deletedFiles = await deleteExpiredOrphanPostMedia(bucket, RETENTION_DAYS);
-  console.log(`Post retention cleanup finished: posts=${deletedPosts}, files=${deletedFiles}, bucket=${STORAGE_BUCKET}`);
-  return { deletedPosts, deletedFiles, bucket: STORAGE_BUCKET };
+  console.log(`Post retention cleanup finished: posts=${deletedPosts}, bucket=${STORAGE_BUCKET}`);
+  return { deletedPosts, bucket: STORAGE_BUCKET };
 }
 
 exports.runPostRetentionCleanup = runPostRetentionCleanup;
