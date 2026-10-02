@@ -2,10 +2,13 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 
 const RETENTION_DAYS = 30;
+const STORAGE_BUCKET = "eldalel-elshamel.firebasestorage.app";
 const POST_STORAGE_PREFIXES = [
   "posts/",
   "post-images/",
   "postImages/",
+  "post-videos/",
+  "postVideos/",
   "post_media/",
   "postMedia/",
   "uploads/posts/",
@@ -49,6 +52,8 @@ async function deleteStorageForPost(bucket, postId, postData) {
     `posts/${postId}/`,
     `post-images/${postId}/`,
     `postImages/${postId}/`,
+    `post-videos/${postId}/`,
+    `postVideos/${postId}/`,
     `post_media/${postId}/`,
     `postMedia/${postId}/`,
     `uploads/posts/${postId}/`,
@@ -64,26 +69,36 @@ async function deleteStorageForPost(bucket, postId, postData) {
   );
 }
 
-async function deleteExpiredPostDocuments(db, bucket, days = RETENTION_DAYS) {
-  const cutoff = cutoffTimestamp(days);
+async function deleteExpiredByField(db, bucket, field, cutoff) {
   let deletedPosts = 0;
 
   while (true) {
     const snap = await db.collection("posts")
-      .where("createdAt", "<=", cutoff)
+      .where(field, "<=", cutoff)
       .limit(100)
       .get();
 
     if (snap.empty) break;
 
-    for (const doc of snap.docs) {
-      await deleteStorageForPost(bucket, doc.id, doc.data()).catch((err) => {
-        console.error("deleteStorageForPost", doc.id, err);
+    for (const postDoc of snap.docs) {
+      await deleteStorageForPost(bucket, postDoc.id, postDoc.data()).catch((err) => {
+        console.error("deleteStorageForPost", postDoc.id, err);
       });
-      await db.recursiveDelete(doc.ref);
+      await db.recursiveDelete(postDoc.ref);
       deletedPosts += 1;
     }
   }
+
+  return deletedPosts;
+}
+
+async function deleteExpiredPostDocuments(db, bucket, days = RETENTION_DAYS) {
+  const cutoff = cutoffTimestamp(days);
+  let deletedPosts = 0;
+
+  deletedPosts += await deleteExpiredByField(db, bucket, "createdAt", cutoff);
+  // دعم المنشورات القديمة التي كانت محفوظة بحقل time فقط.
+  deletedPosts += await deleteExpiredByField(db, bucket, "time", cutoff);
 
   return deletedPosts;
 }
@@ -121,11 +136,11 @@ async function deleteExpiredOrphanPostMedia(bucket, days = RETENTION_DAYS) {
 
 async function runPostRetentionCleanup() {
   const db = admin.firestore();
-  const bucket = admin.storage().bucket();
+  const bucket = admin.storage().bucket(STORAGE_BUCKET);
   const deletedPosts = await deleteExpiredPostDocuments(db, bucket, RETENTION_DAYS);
   const deletedFiles = await deleteExpiredOrphanPostMedia(bucket, RETENTION_DAYS);
-  console.log(`Post retention cleanup finished: posts=${deletedPosts}, files=${deletedFiles}`);
-  return { deletedPosts, deletedFiles };
+  console.log(`Post retention cleanup finished: posts=${deletedPosts}, files=${deletedFiles}, bucket=${STORAGE_BUCKET}`);
+  return { deletedPosts, deletedFiles, bucket: STORAGE_BUCKET };
 }
 
 exports.runPostRetentionCleanup = runPostRetentionCleanup;
