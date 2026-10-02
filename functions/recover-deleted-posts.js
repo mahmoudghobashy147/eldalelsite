@@ -5,13 +5,10 @@ if (!admin.apps.length) admin.initializeApp();
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "eldalel-elshamel";
 const DATABASE_ID = "(default)";
-// قبل عملية الحذف التي بدأت حوالي 07:03 UTC يوم 2026-10-02.
 const READ_TIME = process.env.RECOVERY_READ_TIME || "2026-10-02T06:55:00Z";
 
 async function accessToken() {
-  const auth = new GoogleAuth({
-    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-  });
+  const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
   const client = await auth.getClient();
   const token = await client.getAccessToken();
   return token.token;
@@ -60,39 +57,49 @@ async function getDatabaseInfo() {
   }
 }
 
+async function listBackups() {
+  try {
+    const body = await apiFetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/locations/-/backups`);
+    const backups = Array.isArray(body?.backups) ? body.backups : [];
+    console.log("BACKUPS_FOUND", backups.length);
+    for (const backup of backups) {
+      console.log("BACKUP", JSON.stringify({
+        name: backup.name,
+        database: backup.database,
+        snapshotTime: backup.snapshotTime,
+        expireTime: backup.expireTime,
+        state: backup.state,
+      }));
+    }
+    return backups;
+  } catch (err) {
+    console.warn("Could not list Firestore backups:", err.message);
+    return [];
+  }
+}
+
 async function runQuery(body) {
-  const url = `${base}/documents:runQuery`;
-  return apiFetch(url, {
+  return apiFetch(`${base}/documents:runQuery`, {
     method: "POST",
     body: JSON.stringify({ ...body, readTime: READ_TIME }),
   });
 }
 
 async function historicalPosts() {
-  const rows = await runQuery({
-    structuredQuery: {
-      from: [{ collectionId: "posts" }],
-    },
-  });
+  const rows = await runQuery({ structuredQuery: { from: [{ collectionId: "posts" }] } });
   return (rows || []).map((x) => x.document).filter(Boolean);
 }
 
 async function historicalComments() {
   try {
     const rows = await runQuery({
-      structuredQuery: {
-        from: [{ collectionId: "comments", allDescendants: true }],
-      },
+      structuredQuery: { from: [{ collectionId: "comments", allDescendants: true }] },
     });
     return (rows || []).map((x) => x.document).filter(Boolean);
   } catch (err) {
     console.warn("Historical comments query skipped:", err.message);
     return [];
   }
-}
-
-function docIdFromName(name) {
-  return String(name || "").split("/").pop();
 }
 
 async function existsNow(documentName) {
@@ -113,13 +120,11 @@ async function restoreDocuments(documents, label) {
   for (const document of documents) {
     const name = document?.name;
     if (!name || !document?.fields) continue;
-
     try {
       if (await existsNow(name)) {
         alreadyExists += 1;
         continue;
       }
-
       await apiFetch(`${base}/documents:commit`, {
         method: "POST",
         body: JSON.stringify({
@@ -136,37 +141,42 @@ async function restoreDocuments(documents, label) {
       console.error(`Failed restoring ${label}:`, name, err.message);
     }
   }
-
   return { foundAtReadTime: documents.length, restored, alreadyExists, failures };
 }
 
 (async () => {
   console.log("Starting safe Firestore recovery attempt at readTime:", READ_TIME);
-  await getDatabaseInfo();
+  const dbInfo = await getDatabaseInfo();
+  const backups = await listBackups();
 
   let posts;
   try {
     posts = await historicalPosts();
   } catch (err) {
     console.error("PITR/read-time recovery is not available for the requested timestamp:", err.message);
+    const usableBackups = backups.filter((b) => b?.state === "READY" && b?.snapshotTime && new Date(b.snapshotTime) <= new Date("2026-10-02T07:03:00Z"));
+    console.log("USABLE_BACKUPS_BEFORE_DELETE", usableBackups.length);
+    if (usableBackups.length) {
+      console.log("USABLE_BACKUP_DETAILS", JSON.stringify(usableBackups, null, 2));
+    }
+    console.log("RECOVERY_DIAGNOSTIC", JSON.stringify({
+      pitr: dbInfo?.pointInTimeRecoveryEnablement || null,
+      earliestVersionTime: dbInfo?.earliestVersionTime || null,
+      backupsFound: backups.length,
+      usableBackupsBeforeDelete: usableBackups.length,
+    }, null, 2));
     process.exit(2);
   }
 
   console.log(`Historical posts found: ${posts.length}`);
   const postResult = await restoreDocuments(posts, "post");
-
   const comments = await historicalComments();
   console.log(`Historical comments found: ${comments.length}`);
   const commentResult = await restoreDocuments(comments, "comment");
 
-  const summary = {
+  console.log("RECOVERY_SUMMARY", JSON.stringify({
     readTime: READ_TIME,
     posts: postResult,
     comments: commentResult,
-  };
-  console.log("RECOVERY_SUMMARY", JSON.stringify(summary, null, 2));
-
-  if (postResult.restored === 0 && postResult.alreadyExists === 0) {
-    process.exitCode = 3;
-  }
+  }, null, 2));
 })();
