@@ -36,3 +36,9 @@ if (rootElement && rootElement.hasChildNodes()) {
 } else {
   createRoot(rootElement).render(<App />);
 }
+
+// Hotfix منفصل لا يغيّر أي تصميم: لو Firebase Storage ممتلئ،
+// المنشور النصي يظل قابلًا للنشر بدل فشل العملية كلها.
+setTimeout(() => {
+  import("./post-storage-hotfix").catch((e) => console.warn("post hotfix load failed", e));
+}, 0);
