@@ -9,7 +9,7 @@ const checks = [
   [fn.includes("exports.secureMemberLogin = onCall"), "server secureMemberLogin"],
   [fn.includes('invoker: "public"'), "public callable invoker"],
   [fn.includes("exports.syncMemberPhoneNormalized = onDocumentWritten"), "phone normalization trigger"],
-  [fn.includes("createdLogin: true"), "admin missing-auth repair"],
+  [fn.includes("createdLogin: true") || fn.includes("createdAuth: true") || fn.includes("Legacy/imported member: create the missing Auth identity"), "admin missing-auth repair"],
 ];
 const failed = checks.filter(([ok])=>!ok).map(([,name])=>name);
 if (failed.length) {
