@@ -1,1 +1,1 @@
-deploy 2026-10-14 catalog-management-refresh
+deploy 2026-10-14 catalog-management-v2
