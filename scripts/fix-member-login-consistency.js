@@ -20,7 +20,7 @@ const newPhoneHelper = `  const normalizeMemberPhone = (value) => {
     if (digits.length === 10 && digits.startsWith("1")) digits = "0" + digits;
     return digits;
   };
-  const phoneToEmail = (phone) => \`${normalizeMemberPhone(phone)}@daleel.app\`;`;
+  const phoneToEmail = (phone) => \`\${normalizeMemberPhone(phone)}@daleel.app\`;`;
 if (!app.includes("const normalizeMemberPhone = (value) =>")) {
   if (!app.includes(oldPhoneHelper)) throw new Error("Member login fix: phoneToEmail anchor not found");
   app = app.replace(oldPhoneHelper, newPhoneHelper);
@@ -43,7 +43,7 @@ const oldGenericLogin = `    if(!form.phone||!form.pin) return setError("أدخ�
       if(e.code==="auth/user-not-found"||e.code==="auth/invalid-credential") setError("رقم الموبايل غير مسجل");
       else if(e.code==="auth/wrong-password") setError("الرقم السري غلط");
       else if(e.code==="auth/network-request-failed") setError("تعذر الاتصال بـ Firebase — تأكد إن الموبايل متصل بالنت فعلاً وجرّب تاني");
-      else setError(\`حدث خطأ (\${e.code||"بدون كود"}): \${e.message||e}\`);
+      else setError(\`حدث خطأ (\\${e.code||"بدون كود"}): \\${e.message||e}\`);
     }
     setLoading(false);`;
 
@@ -62,7 +62,7 @@ const newGenericLogin = `    if(!form.phone||!form.pin) return setError("أدخ�
     } catch(e) {
       if(e.code==="auth/user-not-found"||e.code==="auth/invalid-credential"||e.code==="auth/wrong-password") setError("رقم الموبايل أو الرقم السري غير صحيح");
       else if(e.code==="auth/network-request-failed") setError("تعذر الاتصال بـ Firebase — تأكد إن الموبايل متصل بالنت فعلاً وجرّب تاني");
-      else setError(\`حدث خطأ (\${e.code||"بدون كود"}): \${e.message||e}\`);
+      else setError(\`حدث خطأ (\\${e.code||"بدون كود"}): \\${e.message||e}\`);
     }
     setLoading(false);`;
 
@@ -123,7 +123,7 @@ const newResetBlock = `exports.resetMemberPassword = onCall({ invoker: "public" 
     throw new HttpsError("failed-precondition", "رقم موبايل العضو غير صالح لتسجيل الدخول");
   }
 
-  const canonicalEmail = \`${phone}@daleel.app\`;
+  const canonicalEmail = \`\${phone}@daleel.app\`;
   const authApi = admin.auth();
 
   try {
