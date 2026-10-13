@@ -1,0 +1,113 @@
+name: Diagnose Member Auth Consistency
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/diagnose-member-auth.yml
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm ci
+      - name: Configure Firebase credentials
+        shell: bash
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/firebase-service-account.json"
+          else
+            echo "::error::Firebase service account secret missing"
+            exit 1
+          fi
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+      - name: Diagnose member/auth consistency without exposing PII
+        working-directory: functions
+        run: |
+          node - <<'NODE'
+          const admin = require('firebase-admin');
+          admin.initializeApp();
+          const db = admin.firestore();
+          const auth = admin.auth();
+
+          const normalizePhone = (value) => {
+            let d = String(value || '')
+              .replace(/[٠-٩]/g, x => String('٠١٢٣٤٥٦٧٨٩'.indexOf(x)))
+              .replace(/[۰-۹]/g, x => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(x)))
+              .replace(/\D/g, '');
+            if (d.startsWith('20') && d.length >= 12) d = '0' + d.slice(2);
+            if (d.length === 10 && d.startsWith('1')) d = '0' + d;
+            return d;
+          };
+
+          (async () => {
+            const snap = await db.collection('members').get();
+            const members = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+            const approved = members.filter(m => m.status === 'approved');
+
+            const authUsers = [];
+            let token;
+            do {
+              const page = await auth.listUsers(1000, token);
+              authUsers.push(...page.users);
+              token = page.pageToken;
+            } while (token);
+
+            const byUid = new Map(authUsers.map(u => [u.uid, u]));
+            const byNormPhoneEmail = new Map();
+            for (const u of authUsers) {
+              const local = String(u.email || '').split('@')[0];
+              const n = normalizePhone(local);
+              if (n) byNormPhoneEmail.set(n, u);
+            }
+
+            let approvedUidAuth = 0, approvedNoUidAuth = 0, approvedNormEmailMatch = 0;
+            let approvedPhoneMissing = 0, approvedHasPinField = 0, approvedHasPasswordField = 0;
+            let docIdUidMismatch = 0;
+            const fieldCounts = new Map();
+
+            for (const m of approved) {
+              Object.keys(m).forEach(k => fieldCounts.set(k, (fieldCounts.get(k)||0)+1));
+              if (!m.phone) approvedPhoneMissing++;
+              if (Object.prototype.hasOwnProperty.call(m,'pin')) approvedHasPinField++;
+              if (Object.prototype.hasOwnProperty.call(m,'password')) approvedHasPasswordField++;
+
+              const uid = String(m.uid || m.id || '');
+              const uidUser = byUid.get(uid);
+              if (uidUser) approvedUidAuth++; else approvedNoUidAuth++;
+
+              if (m.uid && m.id !== m.uid) docIdUidMismatch++;
+
+              const np = normalizePhone(m.phone);
+              if (np && byNormPhoneEmail.has(np)) approvedNormEmailMatch++;
+            }
+
+            console.log('MEMBERS_TOTAL=' + members.length);
+            console.log('APPROVED_TOTAL=' + approved.length);
+            console.log('AUTH_USERS_TOTAL=' + authUsers.length);
+            console.log('APPROVED_WITH_AUTH_BY_UID=' + approvedUidAuth);
+            console.log('APPROVED_WITHOUT_AUTH_BY_UID=' + approvedNoUidAuth);
+            console.log('APPROVED_MATCH_AUTH_BY_NORMALIZED_PHONE_EMAIL=' + approvedNormEmailMatch);
+            console.log('APPROVED_PHONE_MISSING=' + approvedPhoneMissing);
+            console.log('APPROVED_HAS_PIN_FIELD=' + approvedHasPinField);
+            console.log('APPROVED_HAS_PASSWORD_FIELD=' + approvedHasPasswordField);
+            console.log('APPROVED_DOC_ID_UID_MISMATCH=' + docIdUidMismatch);
+            console.log('APPROVED_FIELD_COUNTS=' + JSON.stringify(Object.fromEntries([...fieldCounts.entries()].sort())));
+          })().catch(e => { console.error(e); process.exit(1); });
+          NODE
+      - name: Cleanup
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
