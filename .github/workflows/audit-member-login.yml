@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
     paths:
-      - functions/audit-member-login.js
+      - functions/audit-member-login.js\n      - functions/backfill-member-phone-normalized.js
       - .github/workflows/audit-member-login.yml
 permissions:
   contents: read
@@ -36,6 +36,8 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
       - name: Audit approved member login links
         run: node functions/audit-member-login.js
+      - name: Backfill normalized phone index safely
+        run: node functions/backfill-member-phone-normalized.js
       - name: Cleanup credential
         if: always()
         run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
