@@ -1,1 +1,1 @@
-deploy 2026-10-02 fixed-post-retention-and-storage-cleanup
+deploy 2026-10-13 member-login-consistency-fix
