@@ -1,0 +1,92 @@
+name: Deploy Member Login Fix
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-member-login-fix.yml
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+      FIREBASE_PROJECT_ID: eldalel-elshamel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked web dependencies
+        run: npm ci
+
+      - name: Build and verify website
+        run: npm run build
+
+      - name: Verify custom domain
+        run: |
+          test -f build/CNAME
+          grep -qx "eldalel-elshamel.online" build/CNAME
+
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Validate member-login Functions syntax
+        run: |
+          node --check functions/index.js
+          node scripts/verify-member-login-fix.js
+
+      - name: Configure Firebase credentials
+        shell: bash
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/firebase-service-account.json"
+          else
+            echo "::error::Firebase service account secret is missing"
+            exit 1
+          fi
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy member login functions only
+        run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only functions:secureMemberLogin,functions:syncMemberPhoneNormalized,functions:resetMemberPassword --non-interactive
+
+      - name: Smoke-test callable public access and CORS
+        shell: bash
+        run: |
+          URL="https://us-central1-${FIREBASE_PROJECT_ID}.cloudfunctions.net/secureMemberLogin"
+          CODE=$(curl -sS -D "$RUNNER_TEMP/member-login-options.headers" -o /dev/null -w '%{http_code}' \
+            -X OPTIONS "$URL" \
+            -H 'Origin: https://eldalel-elshamel.online' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type')
+          echo "OPTIONS_HTTP=$CODE"
+          cat "$RUNNER_TEMP/member-login-options.headers"
+          if [ "$CODE" = "403" ] || [ "$CODE" -ge 500 ]; then
+            echo "::error::secureMemberLogin is not publicly callable"
+            exit 1
+          fi
+          grep -qi 'access-control-allow-origin' "$RUNNER_TEMP/member-login-options.headers"
+
+      - name: Publish website to GitHub Pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          npx gh-pages -d build -m "Deploy member login fix ${GITHUB_SHA}"
+
+      - name: Cleanup Firebase credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
