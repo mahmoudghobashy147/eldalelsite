@@ -1,0 +1,23 @@
+name: Check Member Login Runtime
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/check-member-login-runtime.yml
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secureMemberLogin CORS
+        shell: bash
+        run: |
+          URL="https://us-central1-eldalel-elshamel.cloudfunctions.net/secureMemberLogin"
+          CODE=$(curl -sS -D "$RUNNER_TEMP/h" -o "$RUNNER_TEMP/b" -w '%{http_code}'             -X OPTIONS "$URL"             -H 'Origin: https://eldalel-elshamel.online'             -H 'Access-Control-Request-Method: POST'             -H 'Access-Control-Request-Headers: content-type')
+          echo "OPTIONS_HTTP=$CODE"
+          grep -Ei 'HTTP/|access-control-allow-origin|content-type|server:' "$RUNNER_TEMP/h" || true
+          if [ "$CODE" = "403" ]; then
+            echo "::error::CALLABLE_STILL_FORBIDDEN"
+            exit 1
+          fi
