@@ -14,6 +14,15 @@ const normalizePhone = (value) => {
 
 (async () => {
   const snap = await db.collection("members").where("status","==","approved").get();
+
+  const authByUid = new Map();
+  let pageToken;
+  do {
+    const page = await admin.auth().listUsers(1000, pageToken);
+    for (const u of page.users) authByUid.set(u.uid, u);
+    pageToken = page.pageToken;
+  } while (pageToken);
+
   let authMissing=0, authMismatch=0, uidFieldMismatch=0, authOk=0, noPhone=0;
   const seen = new Map();
   for (const doc of snap.docs) {
@@ -23,18 +32,18 @@ const normalizePhone = (value) => {
     if (d.uid && d.uid !== doc.id) uidFieldMismatch++;
     if (phone) seen.set(phone, (seen.get(phone)||0)+1);
     const uid = d.uid || doc.id;
-    try {
-      const u = await admin.auth().getUser(uid);
-      const emailPhone = normalizePhone(String(u.email||"").split("@")[0]);
-      if (phone && emailPhone && phone !== emailPhone) authMismatch++;
-      else authOk++;
-    } catch (e) {
-      if (e?.code === "auth/user-not-found") authMissing++;
-      else throw e;
+    const u = authByUid.get(uid);
+    if (!u) {
+      authMissing++;
+      continue;
     }
+    const emailPhone = normalizePhone(String(u.email||"").split("@")[0]);
+    if (phone && emailPhone && phone !== emailPhone) authMismatch++;
+    else authOk++;
   }
   const duplicates = [...seen.values()].filter(v => v > 1).length;
   console.log("APPROVED_TOTAL=" + snap.size);
+  console.log("AUTH_TOTAL=" + authByUid.size);
   console.log("AUTH_OK=" + authOk);
   console.log("AUTH_MISSING=" + authMissing);
   console.log("AUTH_PHONE_MISMATCH=" + authMismatch);
