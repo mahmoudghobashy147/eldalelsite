@@ -4,6 +4,7 @@ const OWNER = 'src/catalog-owner.jsx';
 const CATALOG = 'src/catalog.jsx';
 const APP = 'src/App.jsx';
 const RULES = 'firestore.rules';
+const FIRETEST = 'scripts/test-firestore-rules.js';
 const VERIFY = 'scripts/verify-catalog-owner-portal.js';
 
 function replaceOnce(text, from, to, label) {
@@ -12,116 +13,144 @@ function replaceOnce(text, from, to, label) {
   return text.replace(from, to);
 }
 
-// ------------------------------------------------------------------
-// 1) Owner dashboard: use the existing `active` field for hide/show.
-// This is schema-compatible with every existing product and requires no backfill.
-// ------------------------------------------------------------------
+// 1) Owner dashboard: keep the existing schema.
+// Approved products use their existing active field for owner hide/show.
+// No document migration/backfill is required.
 let owner = fs.readFileSync(OWNER, 'utf8');
+owner = owner.replace('accept="image/*" multiple onChange={pickImages}', 'accept="image/*" capture="environment" multiple onChange={pickImages}');
 owner = owner.replace('  const hidden=p.ownerHidden===true;\n', '  const hidden=approved&&p.active===false;\n');
 owner = owner.replace('        data.ownerHidden=editingProduct.ownerHidden===true;\n', '');
 owner = owner.replace('data.active=false;data.ownerHidden=false;data.rejectionReason=""', 'data.active=false;data.rejectionReason=""');
 owner = owner.replace('approvalStatus:"pending",active:false,featured:false,ownerHidden:false,createdAt:', 'approvalStatus:"pending",active:false,featured:false,createdAt:');
 owner = owner.replace('approvalStatus:"approved",active:true,ownerHidden:false,rejectionReason:', 'approvalStatus:"approved",active:true,rejectionReason:');
-owner = owner.replace('const toggleHidden=async p=>{if((p.approvalStatus||"approved")!=="approved")return;const next=!(p.ownerHidden===true);try{await updateDoc(doc(db,"catalogProducts",p.id),{ownerHidden:next,updatedAt:serverTimestamp()});setProducts(xs=>xs.map(x=>x.id===p.id?{...x,ownerHidden:next}:x))}catch(e){alert(e.message)}};',
-  'const toggleHidden=async p=>{if((p.approvalStatus||"approved")!=="approved")return;const next=p.active===false;try{await updateDoc(doc(db,"catalogProducts",p.id),{active:next,updatedAt:serverTimestamp()});setProducts(xs=>xs.map(x=>x.id===p.id?{...x,active:next}:x))}catch(e){alert(e.message)}};');
-owner = owner.replace('products.filter(p=>(p.approvalStatus||"approved")==="approved"&&p.ownerHidden!==true).length', 'products.filter(p=>(p.approvalStatus||"approved")==="approved"&&p.active!==false).length');
+owner = owner.replace(
+  'const toggleHidden=async p=>{if((p.approvalStatus||"approved")!=="approved")return;const next=!(p.ownerHidden===true);try{await updateDoc(doc(db,"catalogProducts",p.id),{ownerHidden:next,updatedAt:serverTimestamp()});setProducts(xs=>xs.map(x=>x.id===p.id?{...x,ownerHidden:next}:x))}catch(e){alert(e.message)}};',
+  'const toggleHidden=async p=>{if((p.approvalStatus||"approved")!=="approved")return;const next=p.active===false;try{await updateDoc(doc(db,"catalogProducts",p.id),{active:next,updatedAt:serverTimestamp()});setProducts(xs=>xs.map(x=>x.id===p.id?{...x,active:next}:x))}catch(e){alert(e.message)}};'
+);
+owner = owner.replace(
+  'products.filter(p=>(p.approvalStatus||"approved")==="approved"&&p.ownerHidden!==true).length',
+  'products.filter(p=>(p.approvalStatus||"approved")==="approved"&&p.active!==false).length'
+);
 fs.writeFileSync(OWNER, owner);
 
-// ------------------------------------------------------------------
-// 2) Customer catalog: search/category filters inside each company and QR per product.
-// ------------------------------------------------------------------
+// 2) Customer catalog: stable direct product links + QR + search inside company.
 let catalog = fs.readFileSync(CATALOG, 'utf8');
 
-if (!catalog.includes('const productQrUrl = id =>')) {
-  const anchor = 'const productUrl = (productId) => {\n  const origin = typeof window !== "undefined" ? window.location.origin : "https://eldalel-elshamel.online";\n  return `${origin}/?catalog=product&productId=${encodeURIComponent(productId)}`;\n};\n';
-  const add = `${anchor}const productQrUrl = id => \`https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=16&data=\${encodeURIComponent(productUrl(id))}\`;\nasync function downloadProductQr(id,name){\n  const url=productQrUrl(id);\n  try{\n    const r=await fetch(url); if(!r.ok) throw new Error('qr');\n    const blob=await r.blob(), objectUrl=URL.createObjectURL(blob);\n    const a=document.createElement('a'); a.href=objectUrl; a.download=\`QR-\${String(name||id).replace(/[^\\p{L}\\p{N}._-]+/gu,'_')}.png\`;\n    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(objectUrl);\n  }catch{ window.open(url,'_blank','noopener,noreferrer'); }\n}\n`;
-  catalog = replaceOnce(catalog, anchor, add, 'product QR helpers');
+if (!catalog.includes('const productUrl = (productId)')) {
+  const anchor='const qrUrl = id => `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=16&data=${encodeURIComponent(catalogUrl(id))}`;\n';
+  const add=anchor+'const productUrl = (productId) => {\n  const origin = typeof window !== "undefined" ? window.location.origin : "https://eldalel-elshamel.online";\n  return `${origin}/?catalog=product&productId=${encodeURIComponent(productId)}`;\n};\nconst productQrUrl = id => `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=16&data=${encodeURIComponent(productUrl(id))}`;\n';
+  catalog=replaceOnce(catalog,anchor,add,'product URL helpers');
+}
+
+catalog = catalog.replace(
+  '  const [ownerOpen,setOwnerOpen]=useState(false);',
+  '  const [ownerOpen,setOwnerOpen]=useState(()=>new URLSearchParams(window.location.search).get("catalog")==="manage");'
+);
+
+if (!catalog.includes('q.get("catalog")==="product"&&pid')) {
+  const oldBlock=`        const q=new URLSearchParams(window.location.search), bid=q.get("businessId");
+        if(q.get("catalog")==="business"&&bid){
+          const found=b.find(x=>x.id===bid);
+          if(found) setSelectedBusiness(found);
+          else try{const s=await getDoc(doc(db,"catalogBusinesses",bid));if(s.exists()&&s.data().active===true)setSelectedBusiness({id:s.id,...s.data()});}catch{}
+        }`;
+  const newBlock=`        const q=new URLSearchParams(window.location.search), bid=q.get("businessId"), pid=q.get("productId");
+        if(q.get("catalog")==="business"&&bid){
+          const found=b.find(x=>x.id===bid);
+          if(found) setSelectedBusiness(found);
+          else try{const s=await getDoc(doc(db,"catalogBusinesses",bid));if(s.exists()&&s.data().active===true)setSelectedBusiness({id:s.id,...s.data()});}catch{}
+        }
+        if(q.get("catalog")==="product"&&pid){
+          const foundProduct=p.find(x=>x.id===pid);
+          if(foundProduct)setSelectedProduct(foundProduct);
+        }`;
+  catalog=replaceOnce(catalog,oldBlock,newBlock,'product deep link');
 }
 
 if (!catalog.includes('data-product-qr="true"')) {
-  const anchor = '        {business&&<div style={{borderTop:`1px solid ${c.border}`,marginTop:16,paddingTop:14}}><div style={{fontWeight:900,color:c.tc}}>{business.name}</div><div style={{fontSize:12,color:c.sub,marginTop:3}}>{business.address||business.governorate}</div></div>}\n        <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"repeat(2,1fr)",gap:8,marginTop:16}}>';
-  const replacement = '        {business&&<div style={{borderTop:`1px solid ${c.border}`,marginTop:16,paddingTop:14}}><div style={{fontWeight:900,color:c.tc}}>{business.name}</div><div style={{fontSize:12,color:c.sub,marginTop:3}}>{business.address||business.governorate}</div></div>}\n        <div data-product-qr="true" style={{display:"flex",alignItems:"center",gap:10,marginTop:14,padding:10,border:`1px solid ${c.border}`,borderRadius:12}}><img src={productQrUrl(p.id)} alt={`QR ${p.name}`} style={{width:66,height:66,borderRadius:8}}/><div style={{flex:1}}><div style={{fontWeight:900,color:c.tc,fontSize:12}}>QR السلعة</div><div style={{fontSize:10.5,color:c.sub,marginTop:2}}>يفتح صفحة السلعة مباشرة</div><div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}><Btn secondary onClick={()=>downloadProductQr(p.id,p.name)} style={{padding:"6px 9px",fontSize:10}}>تحميل QR</Btn><Btn secondary onClick={()=>{if(navigator.share)navigator.share({title:p.name,url:productUrl(p.id)}).catch(()=>{});else navigator.clipboard?.writeText(productUrl(p.id));}} style={{padding:"6px 9px",fontSize:10}}>مشاركة</Btn></div></div></div>\n        <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"repeat(2,1fr)",gap:8,marginTop:16}}>';
-  catalog = replaceOnce(catalog, anchor, replacement, 'product QR panel');
+  const anchor='        {business&&<div style={{borderTop:`1px solid ${c.border}`,marginTop:16,paddingTop:14}}><div style={{fontWeight:900,color:c.tc}}>{business.name}</div><div style={{fontSize:12,color:c.sub,marginTop:3}}>{business.address||business.governorate}</div></div>}\n';
+  const qr=anchor+'        <div data-product-qr="true" style={{display:"flex",alignItems:"center",gap:10,marginTop:14,padding:10,border:`1px solid ${c.border}`,borderRadius:12}}><img src={productQrUrl(p.id)} alt={`QR ${p.name}`} style={{width:66,height:66,borderRadius:8}}/><div style={{flex:1}}><div style={{fontWeight:900,color:c.tc,fontSize:12}}>QR السلعة</div><div style={{fontSize:10.5,color:c.sub,marginTop:2}}>يفتح صفحة السلعة مباشرة</div></div></div>\n';
+  catalog=replaceOnce(catalog,anchor,qr,'product QR');
 }
 
 if (!catalog.includes('const [storeSearch,setStoreSearch]')) {
-  const anchor = 'function BusinessDetails({b,products,categories,onBack,onProduct,darkMode}){\n  const c=cardColors(darkMode), mobile=useMobile();\n  const phones=lines(b.phones), branches=lines(b.branches), wa=(b.whatsapp||phones[0]||"").replace(/\\D/g,"");';
-  const replacement = 'function BusinessDetails({b,products,categories,onBack,onProduct,darkMode}){\n  const c=cardColors(darkMode), mobile=useMobile();\n  const [storeSearch,setStoreSearch]=useState("");\n  const [storeCategory,setStoreCategory]=useState("");\n  const phones=lines(b.phones), branches=lines(b.branches), wa=(b.whatsapp||phones[0]||"").replace(/\\D/g,"");\n  const storeCategoryIds=[...new Set(products.map(p=>p.categoryId).filter(Boolean))];\n  const visibleProducts=products.filter(p=>{const q=normalize(storeSearch);if(storeCategory&&p.categoryId!==storeCategory)return false;return !q||normalize([p.name,p.description,p.specs,p.subCategory,p.size,p.color].join(" ")).includes(q);});';
-  catalog = replaceOnce(catalog, anchor, replacement, 'store search state');
+  const anchor='function BusinessDetails({b,products,categories,onBack,onProduct,darkMode}){\n  const c=cardColors(darkMode), mobile=useMobile();\n  const phones=lines(b.phones), branches=lines(b.branches), wa=(b.whatsapp||phones[0]||"").replace(/\\D/g,"");';
+  const repl='function BusinessDetails({b,products,categories,onBack,onProduct,darkMode}){\n  const c=cardColors(darkMode), mobile=useMobile();\n  const [storeSearch,setStoreSearch]=useState("");\n  const [storeCategory,setStoreCategory]=useState("");\n  const phones=lines(b.phones), branches=lines(b.branches), wa=(b.whatsapp||phones[0]||"").replace(/\\D/g,"");\n  const storeCategoryIds=[...new Set(products.map(p=>p.categoryId).filter(Boolean))];\n  const visibleProducts=products.filter(p=>{const q=normalize(storeSearch);if(storeCategory&&p.categoryId!==storeCategory)return false;return !q||normalize([p.name,p.description,p.specs,p.subCategory,p.size,p.color].join(" ")).includes(q);});';
+  catalog=replaceOnce(catalog,anchor,repl,'company product search state');
 }
 
 if (!catalog.includes('data-store-product-search="true"')) {
-  const anchor = '    <SectionTitle darkMode={darkMode} title="منتجات الشركة" sub={`${products.length} منتج`}/>\n    {products.length?<div style={{display:"grid",gridTemplateColumns:`repeat(${mobile?2:4},minmax(0,1fr))`,gap:11}}>\n      {products.map(p=><ProductCard key={p.id} p={p} business={b} category={categories.find(c=>c.id===p.categoryId)} onOpen={onProduct} darkMode={darkMode}/>)}</div>:<div style={{textAlign:"center",padding:35,color:c.sub}}>لا توجد منتجات منشورة حاليًا</div>}' ;
-  const replacement = '    <div data-store-product-search="true" style={{background:c.card,border:`1px solid ${c.border}`,borderRadius:14,padding:11,marginBottom:14}}><input value={storeSearch} onChange={e=>setStoreSearch(e.target.value)} placeholder="ابحث داخل منتجات الشركة..." style={{...filterStyle(c),padding:"12px"}}/><div style={{display:"flex",gap:7,overflowX:"auto",marginTop:9,paddingBottom:2}}><button onClick={()=>setStoreCategory("")} style={{border:`1px solid ${!storeCategory?GOLD:c.border}`,background:!storeCategory?GOLD:c.input,color:!storeCategory?NAVY_DEEP:c.tc,borderRadius:20,padding:"6px 10px",whiteSpace:"nowrap",fontFamily:"Cairo",fontWeight:800}}>الكل</button>{storeCategoryIds.map(id=>{const cat=categories.find(c=>c.id===id);return <button key={id} onClick={()=>setStoreCategory(id)} style={{border:`1px solid ${storeCategory===id?GOLD:c.border}`,background:storeCategory===id?GOLD:c.input,color:storeCategory===id?NAVY_DEEP:c.tc,borderRadius:20,padding:"6px 10px",whiteSpace:"nowrap",fontFamily:"Cairo",fontWeight:800}}>{cat?.name||"قسم"}</button>})}</div></div>\n    <SectionTitle darkMode={darkMode} title="منتجات الشركة" sub={`${visibleProducts.length} منتج`}/>\n    {visibleProducts.length?<div style={{display:"grid",gridTemplateColumns:`repeat(${mobile?2:4},minmax(0,1fr))`,gap:11}}>\n      {visibleProducts.map(p=><ProductCard key={p.id} p={p} business={b} category={categories.find(c=>c.id===p.categoryId)} onOpen={onProduct} darkMode={darkMode}/>)}</div>:<div style={{textAlign:"center",padding:35,color:c.sub}}>لا توجد منتجات مطابقة</div>}' ;
-  catalog = replaceOnce(catalog, anchor, replacement, 'store search UI');
+  const anchor='    <SectionTitle darkMode={darkMode} title="منتجات الشركة" sub={`${products.length} منتج`}/>\n    {products.length?<div style={{display:"grid",gridTemplateColumns:`repeat(${mobile?2:4},minmax(0,1fr))`,gap:11}}>\n      {products.map(p=><ProductCard key={p.id} p={p} business={b} category={categories.find(c=>c.id===p.categoryId)} onOpen={onProduct} darkMode={darkMode}/>)}</div>:<div style={{textAlign:"center",padding:35,color:c.sub}}>لا توجد منتجات منشورة حاليًا</div>}';
+  const repl='    <div data-store-product-search="true" style={{background:c.card,border:`1px solid ${c.border}`,borderRadius:14,padding:11,marginBottom:14}}><input value={storeSearch} onChange={e=>setStoreSearch(e.target.value)} placeholder="ابحث داخل منتجات الشركة..." style={{width:"100%",boxSizing:"border-box",padding:"12px",borderRadius:10,border:`1px solid ${c.border}`,background:c.input,color:c.tc,fontFamily:"Cairo",outline:"none"}}/><div style={{display:"flex",gap:7,overflowX:"auto",marginTop:9,paddingBottom:2}}><button onClick={()=>setStoreCategory("")} style={{border:`1px solid ${!storeCategory?GOLD:c.border}`,background:!storeCategory?GOLD:c.input,color:!storeCategory?NAVY_DEEP:c.tc,borderRadius:20,padding:"6px 10px",whiteSpace:"nowrap",fontFamily:"Cairo",fontWeight:800}}>الكل</button>{storeCategoryIds.map(id=>{const cat=categories.find(c=>c.id===id);return <button key={id} onClick={()=>setStoreCategory(id)} style={{border:`1px solid ${storeCategory===id?GOLD:c.border}`,background:storeCategory===id?GOLD:c.input,color:storeCategory===id?NAVY_DEEP:c.tc,borderRadius:20,padding:"6px 10px",whiteSpace:"nowrap",fontFamily:"Cairo",fontWeight:800}}>{cat?.name||"قسم"}</button>})}</div></div>\n    <SectionTitle darkMode={darkMode} title="منتجات الشركة" sub={`${visibleProducts.length} منتج`}/>\n    {visibleProducts.length?<div style={{display:"grid",gridTemplateColumns:`repeat(${mobile?2:4},minmax(0,1fr))`,gap:11}}>\n      {visibleProducts.map(p=><ProductCard key={p.id} p={p} business={b} category={categories.find(c=>c.id===p.categoryId)} onOpen={onProduct} darkMode={darkMode}/>)}</div>:<div style={{textAlign:"center",padding:35,color:c.sub}}>لا توجد منتجات مطابقة</div>}';
+  catalog=replaceOnce(catalog,anchor,repl,'company product search UI');
 }
 
-// Logged-in users see the requested explicit wording.
-catalog = catalog.replace('{user?"لوحة متجري / أضف نشاطك":"أضف نشاطك للكتالوج"}', '{user?"إدارة الكتالوج":"أضف نشاطك للكتالوج"}');
+catalog=catalog.replace('{user?"لوحة متجري / أضف نشاطك":"أضف نشاطك للكتالوج"}','{user?"إدارة الكتالوج":"أضف نشاطك للكتالوج"}');
 
-// Admin dashboard metrics and quick activation controls.
+// Admin overview counts + quick catalog/product controls.
 if (!catalog.includes('const catalogStats={')) {
-  const anchor = '  useEffect(()=>{load().catch(console.error)},[db]);\n';
-  const addition = `${anchor}  const catalogStats={totalBusinesses:businesses.length,totalProducts:products.length,newProducts:products.filter(p=>p.ownerId&&p.approvalStatus==="pending").length,activeBusinesses:businesses.filter(b=>b.active!==false).length,stoppedBusinesses:businesses.filter(b=>b.active===false).length};\n  const toggleBusinessActive=async x=>{try{await updateDoc(doc(db,"catalogBusinesses",x.id),{active:x.active===false,updatedAt:serverTimestamp()});await load()}catch(e){alert(e.message)}};\n  const toggleProductActive=async x=>{try{await updateDoc(doc(db,"catalogProducts",x.id),{active:x.active===false,updatedAt:serverTimestamp()});await load()}catch(e){alert(e.message)}};\n`;
-  // Only the CatalogAdminPanel load/useEffect occurrence contains this exact compact form.
-  const idx=catalog.indexOf('export function CatalogAdminPanel');
-  if(idx<0)throw new Error('Catalog management upgrade failed: admin panel missing');
-  const before=catalog.slice(0,idx), after=catalog.slice(idx);
+  const start=catalog.indexOf('export function CatalogAdminPanel');
+  if(start<0)throw new Error('Catalog management upgrade failed: admin panel missing');
+  const before=catalog.slice(0,start), after=catalog.slice(start);
+  const anchor='  useEffect(()=>{load().catch(console.error)},[db]);\n';
+  const addition=anchor+'  const catalogStats={totalBusinesses:businesses.length,totalProducts:products.length,newProducts:products.filter(p=>p.ownerId&&p.approvalStatus==="pending").length,activeBusinesses:businesses.filter(b=>b.active!==false).length,stoppedBusinesses:businesses.filter(b=>b.active===false).length};\n  const toggleBusinessActive=async x=>{try{await updateDoc(doc(db,"catalogBusinesses",x.id),{active:x.active===false,updatedAt:serverTimestamp()});await load()}catch(e){alert(e.message)}};\n  const toggleProductActive=async x=>{try{await updateDoc(doc(db,"catalogProducts",x.id),{active:x.active===false,updatedAt:serverTimestamp()});await load()}catch(e){alert(e.message)}};\n';
   if(!after.includes(anchor))throw new Error('Catalog management upgrade failed: admin load anchor');
   catalog=before+after.replace(anchor,addition);
 }
-
 if (!catalog.includes('data-catalog-admin-stats="true"')) {
-  const anchor = '    <CatalogOwnerRequestsPanel db={db} darkMode={darkMode} onChanged={load}/>\n';
-  const stats = `${anchor}    <div data-catalog-admin-stats="true" style={{display:"grid",gridTemplateColumns:mobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:8,marginBottom:13}}>{[["الكتالوجات",catalogStats.totalBusinesses],["المنتجات",catalogStats.totalProducts],["منتجات جديدة",catalogStats.newProducts],["نشطة",catalogStats.activeBusinesses],["موقوفة",catalogStats.stoppedBusinesses]].map(([label,val])=><div key={label} style={{background:c.card,border:\`1px solid \${c.border}\`,borderRadius:12,padding:11}}><div style={{fontSize:10.5,color:c.sub}}>{label}</div><div style={{fontFamily:"Cairo",fontSize:22,fontWeight:900,color:c.tc}}>{val}</div></div>)}</div>\n`;
-  catalog = replaceOnce(catalog, anchor, stats, 'admin stats');
+  const anchor='    <CatalogOwnerRequestsPanel db={db} darkMode={darkMode} onChanged={load}/>\n';
+  const stats=anchor+'    <div data-catalog-admin-stats="true" style={{display:"grid",gridTemplateColumns:mobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:8,marginBottom:13}}>{[["الكتالوجات",catalogStats.totalBusinesses],["المنتجات",catalogStats.totalProducts],["المنتجات الجديدة",catalogStats.newProducts],["الكتالوجات النشطة",catalogStats.activeBusinesses],["الكتالوجات الموقوفة",catalogStats.stoppedBusinesses]].map(([label,val])=><div key={label} style={{background:c.card,border:`1px solid ${c.border}`,borderRadius:12,padding:11}}><div style={{fontSize:10.5,color:c.sub}}>{label}</div><div style={{fontFamily:"Cairo",fontSize:22,fontWeight:900,color:c.tc}}>{val}</div></div>)}</div>\n';
+  catalog=replaceOnce(catalog,anchor,stats,'admin stats UI');
 }
+catalog=catalog.replace('<Btn secondary onClick={()=>editB(x)}>تعديل</Btn><Btn secondary onClick={()=>window.open(catalogUrl(x.id))}>فتح</Btn>','<Btn secondary onClick={()=>editB(x)}>تعديل</Btn><Btn secondary onClick={()=>toggleBusinessActive(x)}>{x.active===false?"إعادة تفعيل":"إيقاف"}</Btn><Btn secondary onClick={()=>window.open(catalogUrl(x.id))}>فتح</Btn>');
+catalog=catalog.replace('<Btn secondary onClick={()=>editP(x)}>تعديل</Btn><button onClick={()=>remove("products",x.id,x.name)}','<Btn secondary onClick={()=>editP(x)}>تعديل</Btn><Btn secondary onClick={()=>toggleProductActive(x)}>{x.active===false?"إظهار":"إخفاء"}</Btn><button onClick={()=>remove("products",x.id,x.name)}');
+catalog=catalog.replace('🧱 إدارة كتالوج مواد التشطيب','🧱 إدارة الكتالوجات');
 
-catalog = catalog.replace('<Btn secondary onClick={()=>editB(x)}>تعديل</Btn><Btn secondary onClick={()=>window.open(catalogUrl(x.id))}>فتح</Btn>', '<Btn secondary onClick={()=>editB(x)}>تعديل</Btn><Btn secondary onClick={()=>{setSearch(x.name);setTab("products")}}>المنتجات</Btn><Btn secondary onClick={()=>toggleBusinessActive(x)}>{x.active===false?"إعادة تفعيل":"إيقاف"}</Btn><Btn secondary onClick={()=>window.open(catalogUrl(x.id))}>فتح</Btn>');
-catalog = catalog.replace('<Btn secondary onClick={()=>editP(x)}>تعديل</Btn><button onClick={()=>remove("products",x.id,x.name)}', '<Btn secondary onClick={()=>editP(x)}>تعديل</Btn><Btn secondary onClick={()=>toggleProductActive(x)}>{x.active===false?"إظهار":"إخفاء"}</Btn><button onClick={()=>remove("products",x.id,x.name)}');
-catalog = catalog.replace('🧱 إدارة كتالوج مواد التشطيب', '🧱 إدارة الكتالوجات');
+fs.writeFileSync(CATALOG,catalog);
 
-fs.writeFileSync(CATALOG, catalog);
-
-// ------------------------------------------------------------------
-// 3) Firestore: approved owners may hide/show ONLY their approved products.
-// New products are still forced pending + inactive, so this cannot bypass review.
-// ------------------------------------------------------------------
-let rules = fs.readFileSync(RULES, 'utf8');
-rules = rules.replace(
+// 3) Firestore authorization.
+// Approved owners may toggle only active on their own approved product.
+// Pending/rejected products remain unable to self-publish.
+let rules=fs.readFileSync(RULES,'utf8');
+rules=rules.replace(
   "&& request.resource.data.get('active', false) == resource.data.get('active', false))",
   "&& request.resource.data.get('active', false) is bool)"
 );
-fs.writeFileSync(RULES, rules);
+fs.writeFileSync(RULES,rules);
 
-// ------------------------------------------------------------------
-// 4) Account screen: explicit إدارة الكتالوج button. No existing profile data changes.
-// ------------------------------------------------------------------
-let app = fs.readFileSync(APP, 'utf8');
-app = app.replace(
+// Behavioral test for owner hide/show. Existing data remains untouched.
+let test=fs.readFileSync(FIRETEST,'utf8');
+if(!test.includes('// Owner may hide/show an already approved product.')){
+  const anchor='    await assertFails(updateDoc(doc(bob, "catalogProducts", "bob-product-1"), { featured: true }));\n';
+  const add=anchor+'    // Owner may hide/show an already approved product.\n    await assertSucceeds(updateDoc(doc(bob, "catalogProducts", "bob-product-1"), { active: false, updatedAt: new Date() }));\n    await assertFails(getDoc(doc(anon, "catalogProducts", "bob-product-1")));\n    await assertSucceeds(updateDoc(doc(bob, "catalogProducts", "bob-product-1"), { active: true, updatedAt: new Date() }));\n    await assertSucceeds(getDoc(doc(anon, "catalogProducts", "bob-product-1")));\n';
+  test=replaceOnce(test,anchor,add,'owner hide test');
+}
+fs.writeFileSync(FIRETEST,test);
+
+// 4) Account: explicit إدارة الكتالوج button opening the owner manager directly.
+let app=fs.readFileSync(APP,'utf8');
+app=app.replace(
   'const MyProfileScreen = ({ onSuccess, darkMode, currentUser, onMemberClick, onShowPayment }) => {',
   'const MyProfileScreen = ({ onSuccess, darkMode, currentUser, onMemberClick, onShowPayment, onOpenCatalog }) => {'
 );
-if (!app.includes('data-profile-catalog-button="true"')) {
-  const anchor = '        <div style={{padding:isDesktop?"0 28px":0}}>\n        <div style={{background:card,borderRadius:15,padding:15,marginBottom:11,border:`2px solid ${planInfo.color}33`}}>';
-  const replacement = '        <div style={{padding:isDesktop?"0 28px":0}}>\n        <button data-profile-catalog-button="true" onClick={onOpenCatalog} style={{width:"100%",marginBottom:11,border:"none",borderRadius:15,padding:"14px 16px",background:`linear-gradient(135deg,${C.gold},${C.goldDark})`,color:C.navyDeep,fontFamily:"Cairo",fontWeight:900,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}><span>🏪 إدارة الكتالوج</span><span>←</span></button>\n        <div style={{background:card,borderRadius:15,padding:15,marginBottom:11,border:`2px solid ${planInfo.color}33`}}>';
-  app = replaceOnce(app, anchor, replacement, 'profile catalog button');
+if(!app.includes('data-profile-catalog-button="true"')){
+  const anchor='        <div style={{padding:isDesktop?"0 28px":0}}>\n        <div style={{background:card,borderRadius:15,padding:15,marginBottom:11,border:`2px solid ${planInfo.color}33`}}>';
+  const repl='        <div style={{padding:isDesktop?"0 28px":0}}>\n        <button data-profile-catalog-button="true" onClick={onOpenCatalog} style={{width:"100%",marginBottom:11,border:"none",borderRadius:15,padding:"14px 16px",background:`linear-gradient(135deg,${C.gold},${C.goldDark})`,color:C.navyDeep,fontFamily:"Cairo",fontWeight:900,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}><span>🏪 إدارة الكتالوج</span><span>←</span></button>\n        <div style={{background:card,borderRadius:15,padding:15,marginBottom:11,border:`2px solid ${planInfo.color}33`}}>';
+  app=replaceOnce(app,anchor,repl,'profile catalog button');
 }
-app = app.replace(
+app=app.replace(
   '<MyProfileScreen onSuccess={handleRegisterSuccess} darkMode={darkMode} currentUser={user} onMemberClick={handleMemberClick} onShowPayment={()=>setShowPayment(true)}/>',
-  '<MyProfileScreen onSuccess={handleRegisterSuccess} darkMode={darkMode} currentUser={user} onMemberClick={handleMemberClick} onShowPayment={()=>setShowPayment(true)} onOpenCatalog={()=>setActiveTab("catalog")}/>'
+  '<MyProfileScreen onSuccess={handleRegisterSuccess} darkMode={darkMode} currentUser={user} onMemberClick={handleMemberClick} onShowPayment={()=>setShowPayment(true)} onOpenCatalog={()=>{window.history.pushState({},"","?catalog=manage");setActiveTab("catalog")}}/>'
 );
-fs.writeFileSync(APP, app);
+fs.writeFileSync(APP,app);
 
-// ------------------------------------------------------------------
-// 5) Build-time invariants so regressions stop before deployment.
-// ------------------------------------------------------------------
-let verify = fs.readFileSync(VERIFY, 'utf8');
-if (!verify.includes('owner.includes(\'إدارة الكتالوج\')')) {
-  const anchor = "must(owner.includes('إرسال طلب الإضافة'), 'owner request flow missing');\n";
-  const add = `${anchor}must(owner.includes('إدارة الكتالوج'), 'simple catalog management title missing');\nmust(owner.includes('+ إضافة سلعة'), 'simple add-product action missing');\nmust(owner.includes('toggleAvailability'), 'quick availability control missing');\nmust(owner.includes('toggleHidden'), 'quick hide/show control missing');\nmust(owner.includes('QR الكتالوج'), 'catalog QR action missing');\nmust(catalog.includes('data-product-qr="true"'), 'product QR missing');\nmust(catalog.includes('data-store-product-search="true"'), 'business product search missing');\nmust(catalog.includes('data-catalog-admin-stats="true"'), 'admin catalog stats missing');\nmust(app.includes('data-profile-catalog-button="true"'), 'profile catalog management button missing');\n`;
-  verify = replaceOnce(verify, anchor, add, 'verification invariants');
+// 5) Build-time invariants.
+let verify=fs.readFileSync(VERIFY,'utf8');
+if(!verify.includes("simple catalog management title missing")){
+  const anchor="must(owner.includes('إرسال طلب الإضافة'), 'owner request flow missing');\n";
+  const add=anchor+"must(owner.includes('إدارة الكتالوج'), 'simple catalog management title missing');\nmust(owner.includes('+ إضافة سلعة'), 'simple add-product action missing');\nmust(owner.includes('toggleAvailability'), 'quick availability control missing');\nmust(owner.includes('toggleHidden'), 'quick hide/show control missing');\nmust(owner.includes('QR الكتالوج'), 'catalog QR action missing');\nmust(catalog.includes('data-product-qr=\"true\"'), 'product QR missing');\nmust(catalog.includes('data-store-product-search=\"true\"'), 'company product search missing');\nmust(catalog.includes('data-catalog-admin-stats=\"true\"'), 'admin catalog stats missing');\nmust(app.includes('data-profile-catalog-button=\"true\"'), 'profile catalog button missing');\n";
+  verify=replaceOnce(verify,anchor,add,'catalog management verification');
 }
-fs.writeFileSync(VERIFY, verify);
+fs.writeFileSync(VERIFY,verify);
 
-console.log('✅ Safe catalog management upgrade applied without data migration');
+console.log('✅ Safe catalog management upgrade applied without changing existing data');
