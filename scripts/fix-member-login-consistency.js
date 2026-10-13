@@ -43,7 +43,7 @@ const oldGenericLogin = `    if(!form.phone||!form.pin) return setError("أدخ�
       if(e.code==="auth/user-not-found"||e.code==="auth/invalid-credential") setError("رقم الموبايل غير مسجل");
       else if(e.code==="auth/wrong-password") setError("الرقم السري غلط");
       else if(e.code==="auth/network-request-failed") setError("تعذر الاتصال بـ Firebase — تأكد إن الموبايل متصل بالنت فعلاً وجرّب تاني");
-      else setError(\`حدث خطأ (\\${e.code||"بدون كود"}): \\${e.message||e}\`);
+      else setError(\`حدث خطأ (\${e.code||"بدون كود"}): \${e.message||e}\`);
     }
     setLoading(false);`;
 
@@ -62,7 +62,7 @@ const newGenericLogin = `    if(!form.phone||!form.pin) return setError("أدخ�
     } catch(e) {
       if(e.code==="auth/user-not-found"||e.code==="auth/invalid-credential"||e.code==="auth/wrong-password") setError("رقم الموبايل أو الرقم السري غير صحيح");
       else if(e.code==="auth/network-request-failed") setError("تعذر الاتصال بـ Firebase — تأكد إن الموبايل متصل بالنت فعلاً وجرّب تاني");
-      else setError(\`حدث خطأ (\\${e.code||"بدون كود"}): \\${e.message||e}\`);
+      else setError(\`حدث خطأ (\${e.code||"بدون كود"}): \${e.message||e}\`);
     }
     setLoading(false);`;
 
