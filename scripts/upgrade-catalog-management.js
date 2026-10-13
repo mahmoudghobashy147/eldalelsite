@@ -36,10 +36,10 @@ fs.writeFileSync(OWNER, owner);
 // 2) Customer catalog: stable direct product links + QR + search inside company.
 let catalog = fs.readFileSync(CATALOG, 'utf8');
 
-if (!catalog.includes('const productUrl = (productId)')) {
-  const anchor='const qrUrl = id => `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=16&data=${encodeURIComponent(catalogUrl(id))}`;\n';
-  const add=anchor+'const productUrl = (productId) => {\n  const origin = typeof window !== "undefined" ? window.location.origin : "https://eldalel-elshamel.online";\n  return `${origin}/?catalog=product&productId=${encodeURIComponent(productId)}`;\n};\nconst productQrUrl = id => `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=16&data=${encodeURIComponent(productUrl(id))}`;\n';
-  catalog=replaceOnce(catalog,anchor,add,'product URL helpers');
+if (!catalog.includes('const productQrUrl = id =>')) {
+  const anchor='const productUrl = (productId) => {\n  const origin = typeof window !== "undefined" ? window.location.origin : "https://eldalel-elshamel.online";\n  return `${origin}/?catalog=product&productId=${encodeURIComponent(productId)}`;\n};\n';
+  const add=anchor+'const productQrUrl = id => `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=16&data=${encodeURIComponent(productUrl(id))}`;\n';
+  catalog=replaceOnce(catalog,anchor,add,'product QR helper');
 }
 
 catalog = catalog.replace(
@@ -47,25 +47,6 @@ catalog = catalog.replace(
   '  const [ownerOpen,setOwnerOpen]=useState(()=>new URLSearchParams(window.location.search).get("catalog")==="manage");'
 );
 
-if (!catalog.includes('q.get("catalog")==="product"&&pid')) {
-  const oldBlock=`        const q=new URLSearchParams(window.location.search), bid=q.get("businessId");
-        if(q.get("catalog")==="business"&&bid){
-          const found=b.find(x=>x.id===bid);
-          if(found) setSelectedBusiness(found);
-          else try{const s=await getDoc(doc(db,"catalogBusinesses",bid));if(s.exists()&&s.data().active===true)setSelectedBusiness({id:s.id,...s.data()});}catch{}
-        }`;
-  const newBlock=`        const q=new URLSearchParams(window.location.search), bid=q.get("businessId"), pid=q.get("productId");
-        if(q.get("catalog")==="business"&&bid){
-          const found=b.find(x=>x.id===bid);
-          if(found) setSelectedBusiness(found);
-          else try{const s=await getDoc(doc(db,"catalogBusinesses",bid));if(s.exists()&&s.data().active===true)setSelectedBusiness({id:s.id,...s.data()});}catch{}
-        }
-        if(q.get("catalog")==="product"&&pid){
-          const foundProduct=p.find(x=>x.id===pid);
-          if(foundProduct)setSelectedProduct(foundProduct);
-        }`;
-  catalog=replaceOnce(catalog,oldBlock,newBlock,'product deep link');
-}
 
 if (!catalog.includes('data-product-qr="true"')) {
   const anchor='        {business&&<div style={{borderTop:`1px solid ${c.border}`,marginTop:16,paddingTop:14}}><div style={{fontWeight:900,color:c.tc}}>{business.name}</div><div style={{fontSize:12,color:c.sub,marginTop:3}}>{business.address||business.governorate}</div></div>}\n';
