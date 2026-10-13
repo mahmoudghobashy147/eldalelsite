@@ -89,7 +89,7 @@ if (!app.includes('httpsCallable(functions, "secureMemberLogin")')) {
 }
 
 // ---- New registrations use canonical auth email and store a normalized lookup key.
-if (!app.includes('phoneNormalized: normalizeMemberPhone(form.phone)')) {
+if (!app.includes('phoneNormalized: normalizeMemberPhone(form.phone)') && !app.includes('phoneNormalized:registrationPhone')) {
   app = app.replace(
     'const cred = await DB.signUp(email, form.pin, { name:form.name, phone:form.phone, type:"starter" });',
     'const cred = await DB.signUp(email, form.pin, { name:form.name, phone:form.phone, phoneNormalized:normalizeMemberPhone(form.phone), type:"starter" });'
@@ -112,7 +112,7 @@ if (!fn.includes("onDocumentWritten")) {
 // ---- Admin password reset now repairs the single class of approved members that has no Auth user.
 const resetStartMarker = "exports.resetMemberPassword = onCall(async (request) => {";
 const migrationMarker = "// 2) ترحيل دخول الأدمن من السر العام القديم إلى Secret server-side";
-if (!fn.includes("createdLogin: true")) {
+if (!fn.includes("createdLogin: true") && !fn.includes("Legacy/imported member: create the missing Auth identity")) {
   const start = fn.indexOf(resetStartMarker);
   const markerPos = fn.indexOf(migrationMarker, start);
   if (start < 0 || markerPos < 0) throw new Error("Member login patch: reset password anchors not found");
