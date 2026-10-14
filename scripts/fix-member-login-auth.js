@@ -232,6 +232,8 @@ exports.secureMemberLogin = onCall({ invoker: "public" }, async (request) => {
     throw new HttpsError("invalid-argument", "بيانات الدخول غير صحيحة");
   }
 
+  let loginStage = "rate_limit";
+  try {
   const rawIp = String(request.rawRequest?.ip || request.rawRequest?.headers?.["x-forwarded-for"] || "unknown").split(",")[0].trim();
   const attemptKey = crypto.createHash("sha256").update(rawIp + "|" + phone).digest("hex").slice(0, 40);
   const attemptRef = db.collection("memberLoginAttempts").doc(attemptKey);
@@ -244,6 +246,7 @@ exports.secureMemberLogin = onCall({ invoker: "public" }, async (request) => {
   const attempts = sameWindow ? Number(attemptData.attempts || 0) : 0;
   if (attempts >= 10) throw new HttpsError("resource-exhausted", "محاولات كثيرة. حاول لاحقاً");
 
+  loginStage = "member_lookup";
   const candidates = await findMembersByNormalizedPhone(phone);
   if (!candidates.length) {
     throw new HttpsError("not-found", "رقم الموبايل غير مسجل");
@@ -255,6 +258,7 @@ exports.secureMemberLogin = onCall({ invoker: "public" }, async (request) => {
     const uid = String(member.uid || memberDoc.id);
     let authUser;
     try {
+      loginStage = "auth_user_lookup";
       authUser = await admin.auth().getUser(uid);
       authUsersFound++;
     } catch (e) {
@@ -263,6 +267,7 @@ exports.secureMemberLogin = onCall({ invoker: "public" }, async (request) => {
     }
     if (!authUser.email) continue;
 
+    loginStage = "password_verification";
     const verified = await verifyFirebasePassword(authUser.email, pin);
     if (verified.ok && (!verified.localId || verified.localId === uid)) {
       await attemptRef.delete().catch(() => {});
@@ -274,12 +279,22 @@ exports.secureMemberLogin = onCall({ invoker: "public" }, async (request) => {
     throw new HttpsError("failed-precondition", "member-login-missing");
   }
 
+  loginStage = "record_failed_attempt";
   await attemptRef.set({
     attempts: attempts + 1,
     windowStart: sameWindow && attemptData.windowStart ? attemptData.windowStart : FieldValue.serverTimestamp(),
     lastAttemptAt: FieldValue.serverTimestamp(),
   }, { merge: true });
   throw new HttpsError("permission-denied", "رقم الموبايل أو الرقم السري غير صحيح");
+  } catch (error) {
+    // Never log phone numbers, passwords, auth emails, or request bodies.
+    console.error("secureMemberLogin failed", {
+      stage: loginStage,
+      code: String(error?.code || "unknown").slice(0, 80),
+      errorType: String(error?.name || "Error").slice(0, 80),
+    });
+    throw error;
+  }
 });
 
 // يحافظ تلقائياً على مفتاح بحث موحّد لأي رقم يتغير من المستخدم أو الإدارة.
