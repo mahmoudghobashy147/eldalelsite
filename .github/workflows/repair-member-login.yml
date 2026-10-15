@@ -27,7 +27,7 @@ jobs:
         run: |
           npm ci
           npm ci --prefix functions
-      # Redeploy after Firebase Auth diagnostic fix.
+      # Deploy member login with Secret Manager API key binding.
       - name: Apply existing login patches and verify
         run: |
           npm run patch:safety
