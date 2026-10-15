@@ -180,7 +180,7 @@ if (!fn.includes("exports.secureMemberLogin = onCall")) {
 // دخول الأعضاء الآمن بالرقم الحالي في البروفايل.
 // لا نكشف إيميل Firebase القديم إلا بعد التحقق الصحيح من الرقم السري.
 // ─────────────────────────────────────────────
-const FIREBASE_WEB_API_KEY_FOR_AUTH = "AIzaSyA8Xrrp0N0CnDyI-0yvEYFVnh7HYCmH_PQ";
+const FIREBASE_WEB_API_KEY_FOR_AUTH = process.env.MEMBER_LOGIN_API_KEY;
 
 const memberPhoneVariants = (phone) => {
   const local = normalizePhone(phone);
@@ -229,7 +229,7 @@ async function verifyFirebasePassword(email, password) {
   throw new HttpsError("internal", "تعذر التحقق من بيانات الدخول");
 }
 
-exports.secureMemberLogin = onCall({ invoker: "public" }, async (request) => {
+exports.secureMemberLogin = onCall({ invoker: "public", secrets: ["MEMBER_LOGIN_API_KEY"] }, async (request) => {
   const phone = normalizePhone(request.data?.phone);
   const pin = normalizePin(request.data?.pin);
   if (!phone || pin.length < 4 || pin.length > 128) {
