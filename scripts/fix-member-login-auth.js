@@ -222,6 +222,10 @@ async function verifyFirebasePassword(email, password) {
   if (["INVALID_LOGIN_CREDENTIALS", "EMAIL_NOT_FOUND", "INVALID_PASSWORD", "USER_DISABLED"].some(x => reason.includes(x))) {
     return { ok: false };
   }
+  console.error("Firebase Auth verification rejected", {
+    status: response.status,
+    reason: reason.slice(0, 100),
+  });
   throw new HttpsError("internal", "تعذر التحقق من بيانات الدخول");
 }
 
