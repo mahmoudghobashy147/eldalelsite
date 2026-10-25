@@ -22,6 +22,12 @@ jobs:
         run: npm ci
       - name: Build and verify the website bundled in the app
         run: npm run build
+      - name: Install safety backend dependencies
+        run: npm ci --prefix functions
+      - name: Test safety handlers and rules on emulators
+        run: |
+          npm run test:play-safety
+          npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore "node scripts/test-play-safety-emulator.cjs"
       - name: Generate Android 16 project
         run: npx cap add android
       - name: Copy registered Firebase configuration and existing app icons
