@@ -1,1 +1,1 @@
-deploy-retry-original-images-2026-10-02-1148
+2026-10-25 mobile visual release; frontend only; preserve Firebase backend

@@ -1,0 +1,13 @@
+const fs=require('fs'),path=require('path'),assert=require('assert/strict');
+const root=path.join(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const app=read('src/App.jsx'),media=read('src/MediaFeatures.jsx');
+for(const text of ['// mobile-visual-release-2026','<AdsCarousel ads={homeAds}','<MediaGallery images={post.images','<ImageViewer images={photos}','user?.uid===post.authorId','currentUser?.uid===post.authorId','<FloatingWhatsApp phone={OWNER_WHATSAPP}','<CatalogHomeSection db={db}','<CatalogScreen db={db}','secureMemberLogin','release-account-progress'])assert(app.includes(text),'Missing integration: '+text);
+assert(!app.includes('if (!user && !sharedMemberId) setShowAuth(true)'),'Home must not force a login');
+assert(!app.includes('setInterval(() => setHeroAdIdx'),'Ads must remain manually scrollable');
+assert(app.includes('`postImages/${auth.currentUser.uid}/'),'Use the existing Storage image ownership path');
+assert(media.includes('currentUser?.uid!==post.authorId'),'Post ownership must be checked');
+assert(!app.includes('connectFirestoreEmulator'),'Production must use the live backend');
+assert(read('src/post-editor.js').includes('return {content,images:[...images]}'),'Post edits must preserve other fields');
+for(const asset of ['directory-logo','luxury-hero','before-after-room'])assert(fs.readdirSync(path.join(root,'build/static/media')).some(f=>f.startsWith(asset+'.')),'Missing built asset '+asset);
+assert(fs.existsSync(path.join(root,'build/images/hero-team.png')),'Keep existing social share image');
+console.log('✅ Visual release, owner edit, media, catalog and production integration checks passed');
