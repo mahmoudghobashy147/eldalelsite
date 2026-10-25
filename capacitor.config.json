@@ -6,6 +6,13 @@
     "androidScheme": "https"
   },
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "loggingBehavior": "none",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native"
+    }
   }
 }
