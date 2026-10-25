@@ -18,7 +18,7 @@ version_name=re.search(r"versionName='([^']+)'",badging).group(1)
 assert package=='com.company.eldalelelshamel',package
 assert target>=36,target
 assert minimum==24,minimum
-assert version_code==3 and version_name=='1.0.2',(version_code,version_name)
+assert version_code==4 and version_name=='1.0.3',(version_code,version_name)
 # Check real ELF LOAD headers, rather than treating the presence of a .so as failure.
 def elf_loads(data):
  assert data[:4]==b'\x7fELF','A shared object must be ELF'
@@ -36,6 +36,12 @@ def elf_loads(data):
   loads.append({'alignment':align,'addressOffsetCongruent16k':(address-file_offset)%16384==0})
  assert loads,'ELF must have at least one LOAD segment'
  return bits,loads
+with zipfile.ZipFile(apk) as packaged:
+ icon_entries=[n for n in packaged.namelist() if 'approved_directory_logo' in n]
+ assert icon_entries,'Approved Golden D logo missing from APK'
+ styles='\n'.join(packaged.read(n).decode('utf8') for n in packaged.namelist() if n.startswith('assets/public/static/css/') and n.endswith('.css'))
+ assert 'discovery-review-controls' in styles and 'single-mobile-brand' in styles,'Latest approved web interface missing'
+ assert '.ad-carousel .ad-slide-photo' in styles,'Full-width ad styling missing'
 native=[]
 with zipfile.ZipFile(aab) as z:
  libs=[n for n in z.namelist() if n.endswith('.so')]
@@ -53,6 +59,6 @@ assert alignment.returncode==0,'APK failed zipalign -c -P 16 verification'
 files={}
 for p,name in [(apk,'eldalel-android16-test.apk'),(aab,'eldalel-android16-UNSIGNED-not-for-play-upload.aab')]:
  data=p.read_bytes();(out/name).write_bytes(data);files[name]={'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}
-report={'status':'TEST_BUILD_ONLY','playSubmissionReady':False,'applicationId':package,'versionName':version_name,'versionCode':version_code,'targetSdk':target,'minimumSdk':minimum,'bundledSharedLibraries':libs,'nativeAlignmentDetails':native,'apkZipAlignment16k':True,'bundleSigned':signed,'permissions':re.findall(r"uses-permission: name='([^']+)'",badging),'files':files,'unresolved':['Google Play developer account and identity verification','Upload key and signed AAB','Account deletion and associated-data fulfillment','Authenticated live-device UGC acceptance test','Google Play billing decision for digital subscription features','Privacy policy, Data safety and app-access review','Production Firebase security remediation and real-device tests']}
+report={'status':'TEST_BUILD_ONLY','playSubmissionReady':False,'applicationId':package,'versionName':version_name,'versionCode':version_code,'targetSdk':target,'minimumSdk':minimum,'bundledSharedLibraries':libs,'nativeAlignmentDetails':native,'apkZipAlignment16k':True,'bundleSigned':signed,'approvedLogoPresent':True,'latestWebInterfaceBundled':True,'permissions':re.findall(r"uses-permission: name='([^']+)'",badging),'files':files,'unresolved':['Google Play developer account and identity verification','Upload key and signed AAB','Account deletion and associated-data fulfillment','Authenticated live-device UGC acceptance test','Google Play billing decision for digital subscription features','Privacy policy, Data safety and app-access review','Production Firebase security remediation and real-device tests']}
 (out/'build-verification.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
 print(json.dumps({'applicationId':package,'targetSdk':target,'status':report['status'],'nativeLibraries':len(libs),'native16kVerified':True,'bundleSigned':signed}))

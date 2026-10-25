@@ -38,6 +38,8 @@ jobs:
         run: node scripts/prepare-play-android.js
       - name: Sync Capacitor 8
         run: npx cap sync android
+      - name: Install approved Golden D launcher artwork
+        run: node scripts/apply-play-launcher.js
       - name: Build installable test APK and unsigned candidate bundle
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleDebug bundleRelease
