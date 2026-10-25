@@ -40,7 +40,8 @@ with zipfile.ZipFile(apk) as packaged:
  icon_entries=[n for n in packaged.namelist() if 'approved_directory_logo' in n]
  assert icon_entries,'Approved Golden D logo missing from APK'
  styles='\n'.join(packaged.read(n).decode('utf8') for n in packaged.namelist() if n.startswith('assets/public/static/css/') and n.endswith('.css'))
- assert 'discovery-review-controls' in styles and 'single-mobile-brand' in styles,'Latest approved web interface missing'
+ scripts='\n'.join(packaged.read(n).decode('utf8') for n in packaged.namelist() if n.startswith('assets/public/static/js/main.') and n.endswith('.js'))
+ assert 'discovery-review-controls' in styles and 'single-mobile-brand' in scripts,'Latest approved web interface missing'
  assert '.ad-carousel .ad-slide-photo' in styles,'Full-width ad styling missing'
 native=[]
 with zipfile.ZipFile(aab) as z:
