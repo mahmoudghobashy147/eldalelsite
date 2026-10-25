@@ -1,1 +1,1 @@
-2026-10-25 automatic ads every 5 seconds; remove before/after section; frontend only
+2026-10-25 compact catalog, larger create account action, simpler member sign in; frontend only

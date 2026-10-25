@@ -12,4 +12,6 @@ for(const asset of ['directory-logo','luxury-hero'])assert(fs.readdirSync(path.j
 assert(fs.existsSync(path.join(root,'build/images/hero-team.png')),'Keep existing social share image');
 assert(!app.includes('<BeforeAfter'),'The before/after section must be removed');
 assert(read('src/AdsCarousel.jsx').includes('window.setInterval'),'Ads must advance automatically');
+assert(app.includes('className="easy-create-account"'),'Creation action must remain prominent');
+assert(read('src/catalog.jsx').includes('<CompactCatalogHome'),'Compact catalog must be connected');
 console.log('✅ Visual release, owner edit, media, catalog and production integration checks passed');
