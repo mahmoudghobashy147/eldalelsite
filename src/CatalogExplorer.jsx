@@ -1,0 +1,31 @@
+import {useRef,useState} from 'react';
+import CatalogArt from './CatalogArt';
+import './catalog-explorer.css';
+const normalize=value=>String(value||'').toLowerCase().replace(/[إأآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي');
+export default function CatalogExplorer({darkMode,categories,products,businesses,totalProducts,loading,search,onSearch,categoryId,onCategory,onReset,ownerEntry,filters,renderProduct,renderBusiness,onProduct,onBusiness,productsTitle}){
+ const [view,setView]=useState(null),[expanded,setExpanded]=useState(false),results=useRef(null);
+ const activeView=view||(totalProducts?'products':'stores');
+ const stores=businesses.filter(b=>normalize([b.name,b.activityType,b.governorate,b.area,b.description].join(' ')).includes(normalize(search)));
+ const selected=categories.find(c=>c.id===categoryId);
+ const selectCategory=id=>{onCategory(id===categoryId?'':id);setView('products');results.current?.scrollIntoView({behavior:'auto',block:'start'});};
+ const switchToStores=()=>{onCategory('');setView('stores');};
+ const shownCategories=expanded?categories:categories.slice(0,8);
+ const clear=()=>onReset();
+ return <div className={`catalog-explorer ${darkMode?'catalog-dark':''}`} dir="rtl">
+  <div className="catalog-explorer-shell">
+   <header className="catalog-welcome"><div><span className="catalog-eyebrow">الدليل الشامل · الخامات والموردون</span><h1>كتالوج مواد التشطيب<span>اختار خامتك بسهولة.</span></h1><p>اختار القسم، شوف المنتج أو المحل، وتواصل مباشرة.</p></div><div className="catalog-welcome-art" aria-hidden="true"><CatalogArt name="سيراميك"/><span>خامات وتشطيبات</span></div></header>
+   <div className="catalog-search-panel"><label htmlFor="catalog-easy-search"><span aria-hidden="true">⌕</span><input id="catalog-easy-search" type="search" value={search} onChange={e=>onSearch(e.target.value)} placeholder="اسم المنتج أو المحل" autoComplete="off"/></label>{search&&<button type="button" className="catalog-reset" onClick={()=>onSearch('')}>مسح البحث</button>}<div className="catalog-owner-action">{ownerEntry}</div></div>
+   <section className="catalog-category-section" aria-label="أقسام كتالوج مواد التشطيب"><div className="catalog-section-heading"><div><span className="catalog-step">١</span><h2>اختار القسم</h2></div><button className="catalog-text-button" type="button" onClick={()=>{onCategory('');setView('products');}} aria-pressed={!categoryId}>عرض كل المنتجات ←</button></div>
+    <div className="catalog-category-grid">{shownCategories.map(cat=><button className={`catalog-category-tile ${cat.id===categoryId?'is-selected':''}`} key={cat.id} type="button" aria-pressed={cat.id===categoryId} onClick={()=>selectCategory(cat.id)}><CatalogArt name={cat.name}/><strong>{cat.name}</strong><span>{cat.id===categoryId?'تم الاختيار ✓':'شوف المنتجات ←'}</span></button>)}</div>
+    {categories.length>8&&<button className="catalog-more-sections" type="button" aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)}>{expanded?"عرض أقسام أقل ↑":`باقي الأقسام (${categories.length-8}) ↓`}</button>}
+   </section>
+   <section ref={results} className="catalog-results" aria-label="نتائج الكتالوج"><div className="catalog-section-heading"><div><span className="catalog-step">٢</span><h2>شوف اللي يناسبك</h2></div></div><div className="catalog-view-tabs" role="group" aria-label="نوع النتائج"><button type="button" aria-pressed={activeView==='products'} onClick={()=>setView('products')}>المنتجات <span>{products.length}</span></button><button type="button" aria-pressed={activeView==='stores'} onClick={switchToStores}>المحلات والموردون <span>{stores.length}</span></button></div>
+    {activeView==='products'&&<details className="catalog-extra-filters"><summary>خيارات بحث إضافية <span>المحافظة · السعر · المقاس</span></summary>{filters}</details>}
+    {(search||selected)&&<div className="catalog-current-filter"><span>{selected?.name||'نتائج البحث'}{search?` · ${search}`:''}</span><button type="button" onClick={clear}>عرض الكل ×</button></div>}
+    <div className="catalog-results-label"><h3>{activeView==='products'?productsTitle:'المحلات والمصانع والتوكيلات'}</h3><span>{activeView==='products'?products.length:stores.length} نتيجة</span></div>
+    {loading?<div className="catalog-empty" role="status">جاري تحميل الكتالوج…</div>:activeView==='products'?(products.length?<div className="catalog-product-grid">{products.map(p=><article key={p.id} className="catalog-display-card">{renderProduct(p)}<button type="button" className="catalog-card-open" onClick={()=>onProduct(p)}>شوف المنتج والتفاصيل <span>←</span></button></article>)}</div>:<div className="catalog-empty"><CatalogArt name={selected?.name||'سيراميك'}/><h3>{totalProducts?'مفيش منتجات مطابقة دلوقتي':'المنتجات هتظهر هنا أول ما تتضاف'}</h3><p>تقدر تتصفح المحلات وتتواصل معاها وتسأل عن الخامة اللي محتاجها.</p><div><button type="button" className="catalog-primary" onClick={switchToStores}>شوف المحلات والموردين ←</button>{totalProducts>0&&<button type="button" className="catalog-text-button" onClick={clear}>امسح البحث</button>}</div></div>):(stores.length?<div className="catalog-store-grid">{stores.map(b=><article key={b.id} className="catalog-display-card">{renderBusiness(b)}<button type="button" className="catalog-card-open" onClick={()=>onBusiness(b)}>افتح المحل وتواصل <span>←</span></button></article>)}</div>:<div className="catalog-empty"><h3>مفيش محلات مطابقة للبحث</h3><p>جرّب اسم أقصر أو امسح البحث لعرض كل المحلات.</p><button type="button" className="catalog-primary" onClick={clear}>عرض كل المحلات</button></div>)}
+   </section>
+   <aside className="catalog-help-note"><span aria-hidden="true">٣</span><div><strong>لقيت اللي محتاجه؟ اتواصل مباشرة.</strong><p>افتح المنتج أو المحل، واسأل المورد عن السعر والتوفر قبل الاتفاق.</p></div></aside>
+  </div>
+ </div>;
+}

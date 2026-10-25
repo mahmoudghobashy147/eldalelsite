@@ -14,4 +14,6 @@ assert(!app.includes('<BeforeAfter'),'The before/after section must be removed')
 assert(read('src/AdsCarousel.jsx').includes('window.setInterval'),'Ads must advance automatically');
 assert(app.includes('className="easy-create-account"'),'Creation action must remain prominent');
 assert(read('src/catalog.jsx').includes('<CompactCatalogHome'),'Compact catalog must be connected');
+assert(read('src/catalog.jsx').includes('<CatalogExplorer'),'Internal catalog explorer must be connected');
+assert(read('src/catalog-explorer.css').includes('repeat(4,minmax(0,1fr))'),'Catalog grid must not depend on fetched category count');
 console.log('✅ Visual release, owner edit, media, catalog and production integration checks passed');

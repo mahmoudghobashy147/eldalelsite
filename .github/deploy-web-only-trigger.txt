@@ -1,1 +1,1 @@
-2026-10-25 compact catalog, larger create account action, simpler member sign in; frontend only
+2026-10-25 redesign internal catalog with 3D category art, responsive grids and simplified browsing; frontend only

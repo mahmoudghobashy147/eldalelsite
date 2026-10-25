@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const app = fs.readFileSync('src/App.jsx','utf8');
-const catalog = fs.readFileSync('src/catalog.jsx','utf8');
+const catalog = fs.readFileSync('src/catalog.jsx','utf8') + fs.readFileSync('src/CatalogExplorer.jsx','utf8') + fs.readFileSync('src/CompactCatalogHome.jsx','utf8');
 const firestore = fs.readFileSync('firestore.rules','utf8');
 const storage = fs.readFileSync('storage.rules','utf8');
 
