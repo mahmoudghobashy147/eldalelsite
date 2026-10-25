@@ -1,1 +1,1 @@
-2026-10-25 redesign internal catalog with 3D category art, responsive grids and simplified browsing; frontend only
+Mobile safety controls layout refinement after successful scoped backend deployment.
