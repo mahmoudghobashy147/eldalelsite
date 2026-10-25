@@ -1,0 +1,21 @@
+const fs=require('fs'),path=require('path'),assert=require('assert/strict');
+const root=path.join(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8'),write=(p,s)=>fs.writeFileSync(path.join(root,p),s);
+const config=JSON.parse(read('capacitor.config.json'));
+assert.equal(config.appId,'com.company.eldalelelshamel','Preserve the registered Firebase Android application ID');
+const services=JSON.parse(read('google-services.json'));
+assert(services.client.some(c=>c.client_info?.android_client_info?.package_name===config.appId),'Firebase Android registration mismatch');
+let vars=read('android/variables.gradle');
+assert(/targetSdkVersion\s*=\s*36/.test(vars),'Use the Capacitor 8 Android 16 template');
+assert(/compileSdkVersion\s*=\s*36/.test(vars),'Compile against API 36');
+let gradle=read('android/app/build.gradle');
+gradle=gradle.replace(/versionCode\s+\d+/,'versionCode 1').replace(/versionName\s+"[^"]+"/,'versionName "1.0.0"');
+write('android/app/build.gradle',gradle);
+let manifest=read('android/app/src/main/AndroidManifest.xml');
+manifest=manifest.replace(/android:allowBackup="[^"]+"/,'android:allowBackup="false"');
+if(!manifest.includes('android:usesCleartextTraffic='))manifest=manifest.replace('<application','<application android:usesCleartextTraffic="false"');
+else manifest=manifest.replace(/android:usesCleartextTraffic="[^"]+"/,'android:usesCleartextTraffic="false"');
+write('android/app/src/main/AndroidManifest.xml',manifest);
+// The Capacitor 8 template applies google-services when the configuration file exists.
+const java='android/app/src/main/java/'+config.appId.replaceAll('.','/')+'/MainActivity.java';
+write(java,`package ${config.appId};\nimport android.os.Bundle;\nimport androidx.activity.EdgeToEdge;\nimport com.getcapacitor.BridgeActivity;\npublic class MainActivity extends BridgeActivity {\n @Override protected void onCreate(Bundle savedInstanceState) {\n  super.onCreate(savedInstanceState);\n  EdgeToEdge.enable(this);\n }\n}\n`);
+console.log('Android test preparation passed: registered ID, API 36, HTTPS-only, backup disabled, native insets.');

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "applicationId": "com.company.eldalelelshamel",
+  "firstPlaySubmission": true,
+  "targetSdk": 36,
+  "minimumSdk": 24,
+  "submissionReady": false,
+  "releaseTrack": "not-submitted",
+  "signing": "unsigned-bundle-and-debug-apk-only",
+  "pending": [
+    "developer-account-and-owner-identity-verification",
+    "private-upload-key-and-signed-release-bundle",
+    "account-and-associated-data-deletion",
+    "ugc-reporting-blocking-and-moderation",
+    "digital-subscriptions-play-billing-policy",
+    "privacy-policy-and-data-safety-declarations",
+    "support-email-and-app-access-review-details",
+    "firebase-production-security-remediation",
+    "real-android-device-acceptance-tests",
+    "closed-testing-if-required-by-account"
+  ]
+}

@@ -1,0 +1,47 @@
+name: Prepare Google Play Android 16 Test Build
+on:
+  push:
+    branches: [play-store-preparation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build and verify the website bundled in the app
+        run: npm run build
+      - name: Generate Android 16 project
+        run: npx cap add android
+      - name: Copy registered Firebase configuration and existing app icons
+        run: |
+          cp google-services.json android/app/google-services.json
+          cp -r android-icons/* android/app/src/main/res/
+      - name: Apply Android test release configuration
+        run: node scripts/prepare-play-android.js
+      - name: Sync Capacitor 8
+        run: npx cap sync android
+      - name: Build installable test APK and unsigned candidate bundle
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug bundleRelease
+      - name: Inspect built manifests and native-library contents
+        run: python3 scripts/verify-play-artifacts.py
+      - name: Attach preparation notes
+        run: cp play-release/* play-artifacts/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eldalel-android16-TEST-ONLY
+          path: play-artifacts/
+          if-no-files-found: error
+          retention-days: 30
