@@ -18,7 +18,7 @@ version_name=re.search(r"versionName='([^']+)'",badging).group(1)
 assert package=='com.company.eldalelelshamel',package
 assert target>=36,target
 assert minimum==24,minimum
-assert version_code==1 and version_name=='1.0.0',(version_code,version_name)
+assert version_code==2 and version_name=='1.0.1',(version_code,version_name)
 # Check real ELF LOAD headers, rather than treating the presence of a .so as failure.
 def elf_loads(data):
  assert data[:4]==b'\x7fELF','A shared object must be ELF'
@@ -53,6 +53,6 @@ assert alignment.returncode==0,'APK failed zipalign -c -P 16 verification'
 files={}
 for p,name in [(apk,'eldalel-android16-test.apk'),(aab,'eldalel-android16-UNSIGNED-not-for-play-upload.aab')]:
  data=p.read_bytes();(out/name).write_bytes(data);files[name]={'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}
-report={'status':'TEST_BUILD_ONLY','playSubmissionReady':False,'applicationId':package,'versionName':version_name,'versionCode':version_code,'targetSdk':target,'minimumSdk':minimum,'bundledSharedLibraries':libs,'nativeAlignmentDetails':native,'apkZipAlignment16k':True,'bundleSigned':signed,'permissions':re.findall(r"uses-permission: name='([^']+)'",badging),'files':files,'unresolved':['Google Play developer account and identity verification','Upload key and signed AAB','Account deletion and associated-data fulfillment','In-app UGC reporting, blocking and moderation','Google Play billing decision for digital subscription features','Privacy policy, Data safety and app-access review','Production Firebase security remediation and real-device tests']}
+report={'status':'TEST_BUILD_ONLY','playSubmissionReady':False,'applicationId':package,'versionName':version_name,'versionCode':version_code,'targetSdk':target,'minimumSdk':minimum,'bundledSharedLibraries':libs,'nativeAlignmentDetails':native,'apkZipAlignment16k':True,'bundleSigned':signed,'permissions':re.findall(r"uses-permission: name='([^']+)'",badging),'files':files,'unresolved':['Google Play developer account and identity verification','Upload key and signed AAB','Account deletion and associated-data fulfillment','Authenticated live-device UGC acceptance test','Google Play billing decision for digital subscription features','Privacy policy, Data safety and app-access review','Production Firebase security remediation and real-device tests']}
 (out/'build-verification.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
 print(json.dumps({'applicationId':package,'targetSdk':target,'status':report['status'],'nativeLibraries':len(libs),'native16kVerified':True,'bundleSigned':signed}))
