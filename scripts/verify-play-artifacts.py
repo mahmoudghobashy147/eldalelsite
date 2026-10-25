@@ -18,7 +18,7 @@ version_name=re.search(r"versionName='([^']+)'",badging).group(1)
 assert package=='com.company.eldalelelshamel',package
 assert target>=36,target
 assert minimum==24,minimum
-assert version_code==2 and version_name=='1.0.1',(version_code,version_name)
+assert version_code==3 and version_name=='1.0.2',(version_code,version_name)
 # Check real ELF LOAD headers, rather than treating the presence of a .so as failure.
 def elf_loads(data):
  assert data[:4]==b'\x7fELF','A shared object must be ELF'
