@@ -1,0 +1,3 @@
+'use strict';
+const names=['submitSafetyReport','setSafetyBlock','getSafetyState','getSafetyBlockStatus','requestAccountDeletion','sendSafetyMessage','listSafetyModeration','resolveSafetyReport'];
+(async()=>{for(const name of names){const response=await fetch(`https://us-central1-eldalel-elshamel.cloudfunctions.net/${name}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:{}}),signal:AbortSignal.timeout(30000)});const body=await response.json();if(response.status!==401||body.error?.status!=='UNAUTHENTICATED')throw Error(`${name}: expected unauthenticated rejection; received ${response.status}`);console.log(`${name}: authentication required`);}})().catch(e=>{console.error(e.message);process.exitCode=1;});
