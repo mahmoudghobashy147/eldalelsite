@@ -8,7 +8,7 @@ assert(app.includes('`postImages/${auth.currentUser.uid}/'),'Use the existing St
 assert(media.includes('currentUser?.uid!==post.authorId'),'Post ownership must be checked');
 assert(!app.includes('connectFirestoreEmulator'),'Production must use the live backend');
 assert(read('src/post-editor.js').includes('return {content,images:[...images]}'),'Post edits must preserve other fields');
-for(const asset of ['directory-logo','luxury-hero'])assert(fs.readdirSync(path.join(root,'build/static/media')).some(f=>f.startsWith(asset+'.')),'Missing built asset '+asset);
+for(const asset of [app.includes('./assets/play-logo.png')?'play-logo':'directory-logo','luxury-hero'])assert(fs.readdirSync(path.join(root,'build/static/media')).some(f=>f.startsWith(asset+'.')),'Missing built asset '+asset);
 assert(fs.existsSync(path.join(root,'build/images/hero-team.png')),'Keep existing social share image');
 assert(!app.includes('<BeforeAfter'),'The before/after section must be removed');
 assert(read('src/AdsCarousel.jsx').includes('window.setInterval'),'Ads must advance automatically');
