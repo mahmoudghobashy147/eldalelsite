@@ -33,6 +33,7 @@ patch('      <GlobalStyles/><style>{trustStyles}</style>',`      <GlobalStyles/>
 patch('  const [messages, setMessages] = useState([]);','  const {blocked:chatBlocked}=useSafety();\n  const chatIsBlocked=chatBlocked.some(b=>b.id===chat.users.find(u=>u!==currentUser.uid));\n  const [messages, setMessages] = useState([]);','chat disabled state');
 patch('<input placeholder="رسالتك..." value={newMessage}','<input disabled={chatIsBlocked} maxLength={5000} placeholder={chatIsBlocked?"المراسلة متوقفة بسبب الحظر":"رسالتك..."} value={newMessage}','blocked composer');
 patch('<button onClick={handleSendMessage} style={{ background: C.gold','<button disabled={chatIsBlocked} onClick={handleSendMessage} style={{ background: C.gold','blocked send');
+patch('                <div style={{ display: "flex", gap: 9, marginBottom: 9 }}>','                <div className="safety-post-heading" style={{ display: "flex", gap: 9, marginBottom: 9 }}>','responsive post author header');
 fs.writeFileSync('src/App.jsx',s);
 let entry=fs.readFileSync('functions/main.js','utf8');if(!entry.includes('./play-safety/callables.cjs'))entry=entry.replace('  ...require("./index"),','  ...require("./index"),\n  ...require("./play-safety/callables.cjs"),');fs.writeFileSync('functions/main.js',entry);
 let rules=fs.readFileSync('firestore.rules','utf8');const a=rules.indexOf('    match /chats/{chatId} {'),b=rules.indexOf('    // QUICK SERVICE REQUESTS',a);if(a<0||b<0)throw Error('chat rule anchors');let chat=rules.slice(a,b);
