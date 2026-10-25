@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 
 export default function AdsCarousel({ads=[],fallbackImage}) {
- const track=useRef(null),[active,setActive]=useState(0),selected=useRef(0);
+ const track=useRef(null),[active,setActive]=useState(0),[paused,setPaused]=useState(false),selected=useRef(0);
  selected.current=active;
  const go=index=>{
   const target=Math.max(0,Math.min(index,ads.length-1));
@@ -10,6 +10,16 @@ export default function AdsCarousel({ads=[],fallbackImage}) {
  };
  useEffect(()=>{setActive(0);track.current?.scrollTo({left:0,behavior:'auto'});},[ads.length]);
  useEffect(()=>{const el=track.current;if(!el)return;const observer=new ResizeObserver(()=>el.scrollTo({left:selected.current*el.clientWidth,behavior:'auto'}));observer.observe(el);return()=>observer.disconnect();},[]);
+ useEffect(()=>{
+  if(paused||ads.length<2)return;
+  const timer=window.setInterval(()=>{
+   const el=track.current;if(!el||document.hidden||el.contains(document.activeElement))return;
+   const target=(selected.current+1)%ads.length;
+   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+   el.scrollTo({left:target*el.clientWidth,behavior:reduced||target===0?'auto':'smooth'});
+  },5000);
+  return()=>window.clearInterval(timer);
+ },[ads.length,paused]);
  if(!ads.length)return null;
  return <section className="ad-carousel" aria-label="الإعلانات" aria-roledescription="عارض إعلانات">
   <div className="ad-track" dir="ltr" ref={track} tabIndex={0} aria-label="اسحب الإعلانات يمينًا ويسارًا" onKeyDown={event=>{if(event.key==='ArrowLeft'){event.preventDefault();go(active+1);}if(event.key==='ArrowRight'){event.preventDefault();go(active-1);}}} onScroll={event=>{const el=event.currentTarget;if(el.clientWidth)setActive(Math.max(0,Math.min(ads.length-1,Math.round(el.scrollLeft/el.clientWidth))));}}>
@@ -20,6 +30,7 @@ export default function AdsCarousel({ads=[],fallbackImage}) {
    </article>)}
   </div>
   {ads.length>1&&<><button type="button" className="ad-arrow ad-next" aria-label="الإعلان التالي" onClick={()=>go(active+1)} disabled={active===ads.length-1}>‹</button><button type="button" className="ad-arrow ad-prev" aria-label="الإعلان السابق" onClick={()=>go(active-1)} disabled={active===0}>›</button><div className="ad-dots" aria-label="اختيار الإعلان">{ads.map((ad,index)=><button type="button" key={ad.id||index} aria-label={`انتقل للإعلان ${index+1}`} aria-pressed={active===index} onClick={()=>go(index)}/>)}</div></>}
-  <span className="sr-only" aria-live="polite">الإعلان {active+1} من {ads.length}</span>
+  {ads.length>1&&<button type="button" aria-label={paused?"تشغيل حركة الإعلانات":"إيقاف حركة الإعلانات"} onClick={()=>setPaused(value=>!value)} style={{position:"absolute",top:10,left:10,zIndex:3,minWidth:44,minHeight:44,border:"1px solid #ffffff88",borderRadius:12,background:"#143d2bd9",color:"white",fontSize:16,cursor:"pointer"}}>{paused?"▶":"Ⅱ"}</button>}
+  <span className="sr-only" aria-live={paused?"polite":"off"}>الإعلان {active+1} من {ads.length}</span>
  </section>;
 }

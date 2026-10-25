@@ -1,1 +1,1 @@
-2026-10-25 mobile visual release; frontend only; preserve Firebase backend
+2026-10-25 automatic ads every 5 seconds; remove before/after section; frontend only
