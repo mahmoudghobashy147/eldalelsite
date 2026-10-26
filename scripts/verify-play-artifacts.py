@@ -42,7 +42,8 @@ with zipfile.ZipFile(apk) as packaged:
  styles='\n'.join(packaged.read(n).decode('utf8') for n in packaged.namelist() if n.startswith('assets/public/static/css/') and n.endswith('.css'))
  scripts='\n'.join(packaged.read(n).decode('utf8') for n in packaged.namelist() if n.startswith('assets/public/static/js/main.') and n.endswith('.js'))
  assert 'discovery-review-controls' in styles and 'single-mobile-brand' in scripts,'Latest approved web interface missing'
- assert 'platform-stats-grid' in styles and '37770' in scripts,'Restored compact counters missing'\n assert '.ad-carousel .ad-slide-photo' in styles,'Full-width ad styling missing'
+ assert 'platform-stats-grid' in styles and '37770' in scripts,'Restored compact counters missing'
+ assert '.ad-carousel .ad-slide-photo' in styles,'Full-width ad styling missing'
 native=[]
 with zipfile.ZipFile(aab) as z:
  libs=[n for n in z.namelist() if n.endswith('.so')]
