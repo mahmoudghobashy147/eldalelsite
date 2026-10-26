@@ -35,9 +35,13 @@ requireText(app, '<CatalogHomeSection db={db}', 'catalog homepage section');
 requireText(app, 'activeTab==="catalog"', 'catalog screen route');
 requireText(app, '["catalog","🧱","كتالوج مواد التشطيب"]', 'catalog admin navigation');
 requireText(app, '<CatalogAdminPanel db={db}', 'catalog admin panel');
-requireText(app, 'data-home-main-sections="true"', 'explicit homepage main sections');
-requireText(app, 'الصنايعية', 'homepage craftsmen section');
-requireText(app, 'المهندسين والشركات', 'homepage engineers and companies section');
+const mainCategories = fs.readFileSync('src/MainCategories.jsx','utf8');
+requireText(app, '<MainCategories onNavigate={onNavigate}', 'homepage category component connected');
+requireText(mainCategories, 'data-home-main-sections="true"', 'explicit homepage main sections');
+requireText(mainCategories, "filters:{category:'craftsman'}", 'craftsmen filter retained');
+requireText(mainCategories, "tab:'catalog'", 'catalog category navigation retained');
+requireText(mainCategories, 'الصنايعية', 'homepage craftsmen section');
+requireText(mainCategories, 'المهندسين والشركات', 'homepage engineers and companies section');
 
 // Catalog capabilities requested by the product brief.
 [
