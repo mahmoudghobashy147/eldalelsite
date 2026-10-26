@@ -1,0 +1,5 @@
+.release-specialties button{display:inline-flex;align-items:center;gap:6px;min-height:52px;padding:6px 12px;font-size:11px}
+.specialty-icon-3d{display:inline-block;flex:0 0 38px;width:38px;height:38px;background-repeat:no-repeat;background-size:400% 400%;filter:drop-shadow(0 3px 2px #243a2930);transition:transform .2s ease;vertical-align:middle}
+@media(hover:hover){.release-specialties button:hover .specialty-icon-3d{transform:translateY(-2px) scale(1.08)}}
+@media(max-width:700px){.release-specialties button{min-height:48px;padding:5px 9px;font-size:10px}.specialty-icon-3d{flex-basis:34px;width:34px;height:34px}}
+@media(prefers-reduced-motion:reduce){.specialty-icon-3d{transition:none!important;transform:none!important}}
