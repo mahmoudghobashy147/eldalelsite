@@ -1,23 +1,26 @@
 {
   "files": {
-    "main.css": "./static/css/main.fb5ca3a2.css",
-    "main.js": "./static/js/main.00598db1.js",
+    "main.css": "./static/css/main.fdcfbc08.css",
+    "main.js": "./static/js/main.95288bc5.js",
     "static/js/139.2b5e1b6e.chunk.js": "./static/js/139.2b5e1b6e.chunk.js",
     "static/js/833.312eb2cd.chunk.js": "./static/js/833.312eb2cd.chunk.js",
     "static/js/205.9e1b1641.chunk.js": "./static/js/205.9e1b1641.chunk.js",
     "static/js/551.8d569db8.chunk.js": "./static/js/551.8d569db8.chunk.js",
     "static/media/luxury-hero.webp": "./static/media/luxury-hero.0c9c85ec8d3156fee498.webp",
+    "static/media/category-craft-3d.webp": "./static/media/category-craft-3d.8dafe2b38a92ab2512b1.webp",
+    "static/media/category-engineering-3d.webp": "./static/media/category-engineering-3d.2a2527f6d27100577b74.webp",
+    "static/media/category-materials-3d.webp": "./static/media/category-materials-3d.c3aad1032d90a20583d6.webp",
     "static/media/directory-logo.webp": "./static/media/directory-logo.53647bfa377373ada9c5.webp",
     "index.html": "./index.html",
-    "main.fb5ca3a2.css.map": "./static/css/main.fb5ca3a2.css.map",
-    "main.00598db1.js.map": "./static/js/main.00598db1.js.map",
+    "main.fdcfbc08.css.map": "./static/css/main.fdcfbc08.css.map",
+    "main.95288bc5.js.map": "./static/js/main.95288bc5.js.map",
     "139.2b5e1b6e.chunk.js.map": "./static/js/139.2b5e1b6e.chunk.js.map",
     "833.312eb2cd.chunk.js.map": "./static/js/833.312eb2cd.chunk.js.map",
     "205.9e1b1641.chunk.js.map": "./static/js/205.9e1b1641.chunk.js.map",
     "551.8d569db8.chunk.js.map": "./static/js/551.8d569db8.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.fb5ca3a2.css",
-    "static/js/main.00598db1.js"
+    "static/css/main.fdcfbc08.css",
+    "static/js/main.95288bc5.js"
   ]
 }
