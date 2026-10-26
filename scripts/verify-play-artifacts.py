@@ -18,7 +18,7 @@ version_name=re.search(r"versionName='([^']+)'",badging).group(1)
 assert package=='com.company.eldalelelshamel',package
 assert target>=36,target
 assert minimum==24,minimum
-assert version_code==5 and version_name=='1.0.4',(version_code,version_name)
+assert version_code==6 and version_name=='1.0.5',(version_code,version_name)
 # Check real ELF LOAD headers, rather than treating the presence of a .so as failure.
 def elf_loads(data):
  assert data[:4]==b'\x7fELF','A shared object must be ELF'
@@ -44,6 +44,9 @@ with zipfile.ZipFile(apk) as packaged:
  assert 'discovery-review-controls' in styles and 'single-mobile-brand' in scripts,'Latest approved web interface missing'
  assert 'platform-stats-grid' in styles and '37770' in scripts,'Restored compact counters missing'
  assert '.ad-carousel .ad-slide-photo' in styles,'Full-width ad styling missing'
+ assert 'main-category-card' in styles and 'ad-fixed-frame' in scripts,'3D category or fixed ad interface missing'
+ for category in ('craft','engineering','materials'):
+  assert any('assets/public/static/media/category-'+category+'-3d.' in name for name in packaged.namelist()),'Missing category image '+category
 native=[]
 with zipfile.ZipFile(aab) as z:
  libs=[n for n in z.namelist() if n.endswith('.so')]
