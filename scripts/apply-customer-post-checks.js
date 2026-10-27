@@ -13,6 +13,7 @@ patch('    // ── Owner profile edits ─────────────
     await assertFails(updateDoc(doc(customer, "members", "customerTest"), {status:"approved", isAdmin:true}));
 
     // ── Owner profile edits ──────────────────────────────────────`);
+patch('      authorId: "alice", content: "شغل جديد", likes: 0,','      authorId: "alice", content: "شغل جديد", images: [], likes: 0,');
 patch('    await assertFails(updateDoc(doc(bob, "posts", "post1"), { content: "hacked" }));',`    await assertSucceeds(updateDoc(doc(alice, "posts", "post1"), { content: "تعديل صاحب المنشور" }));
     await assertFails(updateDoc(doc(bob, "posts", "post1"), { content: "hacked" }));`);
 fs.writeFileSync(file,s);console.log('Customer registration and post ownership checks staged.');
