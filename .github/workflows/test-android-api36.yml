@@ -1,0 +1,45 @@
+name: Test Android API 36 migration
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/test-android-api36.yml', 'package.json', 'package-lock.json']
+permissions:
+  contents: read
+jobs:
+  android-migration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Capacitor 8 and update lockfile
+        run: npm install @capacitor/android@^8 @capacitor/core@^8 @capacitor/app@^8 @capacitor/push-notifications@^8 @capacitor/cli@^8
+      - name: Build web app
+        run: npm run build
+      - name: Generate Android project
+        run: |
+          npx cap add android
+          cp -r android-icons/* android/app/src/main/res/
+          cp google-services.json android/app/google-services.json
+          sed -i "/classpath 'com.android.tools.build:gradle/a\\        classpath 'com.google.gms:google-services:4.4.2'" android/build.gradle
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+          npx cap sync android
+          grep -E 'targetSdkVersion *= *36' android/variables.gradle
+      - name: Build debug Android app
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug
+      - name: Save migration lockfiles and debug build
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-api36-migration
+          path: |
+            package.json
+            package-lock.json
+            android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
