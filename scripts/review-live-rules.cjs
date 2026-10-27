@@ -3,3 +3,5 @@ const {GoogleAuth}=require('../functions/node_modules/google-auth-library');cons
 const hash=s=>crypto.createHash('sha256').update(s.trim()).digest('hex');
 async function main(){const client=await new GoogleAuth({scopes:['https://www.googleapis.com/auth/cloud-platform']}).getClient();const project='eldalel-elshamel',api='https://firebaserules.googleapis.com/v1/';let list=(await client.request({url:api+`projects/${project}/releases`})).data.releases||[];for(const release of list){if(!release.name.endsWith('/cloud.firestore')&&!release.name.includes('/firebase.storage/'))continue;let resp=(await client.request({url:api+release.rulesetName})).data;let files=resp.source?.files||[];if(files.length!==1||typeof files[0].content!=='string')throw Error('Unexpected rule source');let type=release.name.endsWith('/cloud.firestore')?'firestore':'storage';let src=files[0].content;fs.writeFileSync(`/tmp/production-${type}.rules`,src);console.log('ACTIVE_RELEASE',release.name,'HASH',hash(src),'CANDIDATE_HASH',hash(fs.readFileSync(`${type}.rules`,'utf8')))} }
 main().catch(e=>{console.error(e.message);process.exitCode=1});
+
+// Read-only direct catalog release review.
