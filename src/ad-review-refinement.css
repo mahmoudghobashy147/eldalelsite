@@ -99,3 +99,31 @@
  .release-home .ad-fixed-frame.ad-peek .ad-track{padding-inline:20px;scroll-padding-inline:20px}
  .release-home .ad-fixed-frame .ad-slide-photo{object-fit:contain}
 }
+
+/* Cinematic carousel: one centered ad with soft dimensional neighbors. */
+.release-home .ad-cinema{background:linear-gradient(145deg,#1d4b38,#0b2e22);border-radius:20px;border-color:#d5c386;box-shadow:0 5px 0 #b8b696,0 13px 28px #173c2c38}
+.release-home .ad-cinema.ad-peek .ad-track{position:relative;box-sizing:border-box;align-items:stretch;padding:14px 10% 7px;scroll-padding-inline:10%;gap:12px;overscroll-behavior-x:contain}
+.release-home .ad-cinema.ad-peek .ad-slide{flex:0 0 100%;opacity:.63;transform:perspective(900px) scale(.91);transform-origin:center;transition:transform .45s ease,opacity .45s ease;box-shadow:0 7px 15px #00170e88;scroll-snap-align:center;scroll-snap-stop:normal;border:1px solid #e4cf8a50}
+.release-home .ad-cinema.ad-peek .ad-slide-active{opacity:1;transform:perspective(900px) scale(1);box-shadow:0 9px 22px #00170e88;border-color:#e8d59b99}
+.release-home .ad-cinema .ad-slide{grid-template-rows:clamp(220px,32vw,350px) 54px;min-width:0}
+.release-home .ad-cinema .ad-artwork{background:#173d2d}
+.release-home .ad-cinema .ad-slide-photo{object-fit:contain}
+.release-home .ad-cinema .ad-pagination{background:transparent;color:#f3e2ae;min-height:48px;padding:0 8px 2px}
+.release-home .ad-cinema .ad-pagination-count{color:#f7e7b7}
+.release-home .ad-cinema .ad-nav-button,.release-home .ad-cinema .ad-cinema-pause{border:1px solid #e1cb8877;border-radius:12px;background:#254d3b;color:#ffebae;box-shadow:inset 0 1px #ffffff2e,0 2px 4px #001b1277;width:44px;height:44px;min-width:44px;font:700 18px Cairo,sans-serif}
+.release-home .ad-cinema .ad-cinema-pause{font-size:15px;cursor:pointer}
+.release-home .ad-cinema .ad-page-button span{background:#a9bdac}
+.release-home .ad-cinema .ad-page-button[aria-pressed="true"] span{background:#e4c568}
+.ad-cinema-progress{height:3px;background:#ffffff29;overflow:hidden;direction:ltr}
+.ad-cinema-progress span{display:block;height:100%;width:100%;background:linear-gradient(90deg,#dfbf64,#fff1bb);transform-origin:left;animation:ad-cinema-clock 5s linear both}
+@keyframes ad-cinema-clock{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media(max-width:700px){
+ .release-home .ad-cinema.ad-peek .ad-track{padding:10px 8% 6px;scroll-padding-inline:8%;gap:8px}
+ .release-home .ad-cinema .ad-slide{grid-template-rows:clamp(185px,54vw,255px) 50px}
+ .release-home .ad-cinema .ad-pagination{gap:2px}
+ .release-home .ad-cinema .ad-page-button{width:29px;min-width:29px}
+}
+@media(prefers-reduced-motion:reduce){
+ .release-home .ad-cinema.ad-peek .ad-slide{transition:none}
+ .ad-cinema-progress span{animation:none;transform:scaleX(0)}
+}
