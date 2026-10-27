@@ -62,13 +62,14 @@ jobs:
       - name: Add google-services.json
         run: cp google-services.json android/app/google-services.json
 
-      - name: Add Google Services Gradle plugin
-        run: |
-          sed -i "/classpath 'com.android.tools.build:gradle/a\\        classpath 'com.google.gms:google-services:4.4.2'" android/build.gradle
-          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+      - name: Apply Android 16 release configuration
+        run: node scripts/prepare-play-android.js
 
       - name: Sync Capacitor
         run: npx cap sync android
+
+      - name: Install approved Golden D launcher artwork
+        run: node scripts/apply-play-launcher.js
 
       - name: Decode Android signing keystore
         shell: bash
@@ -82,11 +83,20 @@ jobs:
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew bundleRelease \
+          ./gradlew assembleDebug bundleRelease \
             -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/release.keystore" \
             -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
+
+      - name: Verify target, identity, and signature
+        shell: bash
+        run: |
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          "$aapt" dump badging android/app/build/outputs/apk/debug/app-debug.apk > /tmp/eldalel-badging.txt
+          grep -q "package: name='com.company.eldalelelshamel' versionCode='7' versionName='1.0.6'" /tmp/eldalel-badging.txt
+          grep -q "targetSdkVersion:'36'" /tmp/eldalel-badging.txt
+          jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab | grep -q "jar verified"
 
       - name: Upload signed AAB
         uses: actions/upload-artifact@v4

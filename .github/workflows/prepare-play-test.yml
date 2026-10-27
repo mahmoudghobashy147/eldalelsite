@@ -45,6 +45,14 @@ jobs:
         run: chmod +x gradlew && ./gradlew assembleDebug bundleRelease
       - name: Inspect built manifests and native-library contents
         run: python3 scripts/verify-play-artifacts.py
+      - name: Exercise signing with disposable test key
+        shell: bash
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/test-signing.jks" -storepass testonly123 -keypass testonly123 -alias testonly -dname "CN=Test Only" -keyalg RSA -keysize 2048 -validity 1 -noprompt
+          cd android
+          ./gradlew bundleRelease -Pandroid.injected.signing.store.file="$RUNNER_TEMP/test-signing.jks" -Pandroid.injected.signing.store.password=testonly123 -Pandroid.injected.signing.key.alias=testonly -Pandroid.injected.signing.key.password=testonly123
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab | grep -q "jar verified"
+          rm -f "$RUNNER_TEMP/test-signing.jks"
       - name: Attach preparation notes
         run: cp play-release/* play-artifacts/
       - uses: actions/upload-artifact@v4
