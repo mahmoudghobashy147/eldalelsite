@@ -1,0 +1,41 @@
+name: Read-only production rules comparison
+on:
+  pull_request:
+    paths: ['.github/workflows/review-live-rules.yml', 'scripts/review-live-rules.cjs']
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci && npm run patch:safety && npm ci --prefix functions
+      - name: Read current production rules without deploying
+        shell: bash
+        run: |
+          umask 077
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase.json"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/firebase.json"
+          else
+            echo '::error::No Firebase credential available for read-only review'
+            exit 1
+          fi
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase.json"
+          node scripts/review-live-rules.cjs
+          for type in firestore storage; do
+            if [ -f "/tmp/production-$type.rules" ]; then
+              echo "REVIEW_DIFF_$type"
+              diff -u "/tmp/production-$type.rules" "$type.rules" || true
+            else
+              echo "::warning::No live $type release found"
+            fi
+          done
+          rm -f "$RUNNER_TEMP/firebase.json"
