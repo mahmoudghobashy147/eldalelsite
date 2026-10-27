@@ -1,0 +1,72 @@
+name: Deploy service requests and photo plan update
+on:
+  push:
+    branches: [main]
+    paths: ['.github/deploy-service-request-photo-trigger.txt']
+permissions:
+  contents: write
+concurrency:
+  group: eldalel-request-photo-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build and run release checks
+        run: |
+          npm ci
+          npm run build
+          npm ci --prefix functions
+          npm run test:play-safety
+          npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js && node scripts/test-catalog-rules.js"
+          grep -qx 'eldalel-elshamel.online' build/CNAME
+      - name: Configure Firebase deployment identity
+        shell: bash
+        run: |
+          umask 077
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase.json"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/firebase.json"
+          else
+            echo '::error::Firebase deployment credential is unavailable'
+            exit 1
+          fi
+          node -e 'const x=require(process.argv[1]);if(x.project_id!=="eldalel-elshamel"||!x.private_key||!x.client_email)process.exit(1)' "$RUNNER_TEMP/firebase.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase.json" >> "$GITHUB_ENV"
+      - name: Deploy only the service request callable
+        run: npx firebase-tools deploy --project eldalel-elshamel --only functions:createServiceRequest --non-interactive
+      - name: Verify the live callable with an invalid request
+        shell: bash
+        run: |
+          url='https://us-central1-eldalel-elshamel.cloudfunctions.net/createServiceRequest'
+          options=$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' -X OPTIONS "$url" -H 'Origin: https://eldalel-elshamel.online' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type')
+          echo "OPTIONS_HTTP=$options"
+          test "$options" = 204
+          code=$(curl -sS --max-time 30 -o "$RUNNER_TEMP/callable-response" -w '%{http_code}' -X POST "$url" -H 'Origin: https://eldalel-elshamel.online' -H 'Content-Type: application/json' --data '{"data":{}}')
+          echo "INVALID_REQUEST_HTTP=$code"
+          test "$code" = 400
+          grep -q 'INVALID_ARGUMENT' "$RUNNER_TEMP/callable-response"
+      - name: Publish verified website
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf 'https://github.com/'
+          npx gh-pages -d build -m "Deploy service request and photo plans ${GITHUB_SHA}"
+      - name: Remove deployment credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase.json"
