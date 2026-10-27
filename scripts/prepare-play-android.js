@@ -8,7 +8,7 @@ let vars=read('android/variables.gradle');
 assert(/targetSdkVersion\s*=\s*36/.test(vars),'Use the Capacitor 8 Android 16 template');
 assert(/compileSdkVersion\s*=\s*36/.test(vars),'Compile against API 36');
 let gradle=read('android/app/build.gradle');
-gradle=gradle.replace(/versionCode\s+\d+/,'versionCode 6').replace(/versionName\s+"[^"]+"/,'versionName "1.0.5"');
+gradle=gradle.replace(/versionCode\s+\d+/,'versionCode 7').replace(/versionName\s+"[^"]+"/,'versionName "1.0.6"');
 write('android/app/build.gradle',gradle);
 let manifest=read('android/app/src/main/AndroidManifest.xml');
 manifest=manifest.replace(/android:allowBackup="[^"]+"/,'android:allowBackup="false"');

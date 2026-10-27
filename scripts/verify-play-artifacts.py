@@ -18,7 +18,7 @@ version_name=re.search(r"versionName='([^']+)'",badging).group(1)
 assert package=='com.company.eldalelelshamel',package
 assert target>=36,target
 assert minimum==24,minimum
-assert version_code==6 and version_name=='1.0.5',(version_code,version_name)
+assert version_code==7 and version_name=='1.0.6',(version_code,version_name)
 # Check real ELF LOAD headers, rather than treating the presence of a .so as failure.
 def elf_loads(data):
  assert data[:4]==b'\x7fELF','A shared object must be ELF'
@@ -41,6 +41,8 @@ with zipfile.ZipFile(apk) as packaged:
  assert icon_entries,'Approved Golden D logo missing from APK'
  styles='\n'.join(packaged.read(n).decode('utf8') for n in packaged.namelist() if n.startswith('assets/public/static/css/') and n.endswith('.css'))
  scripts='\n'.join(packaged.read(n).decode('utf8') for n in packaged.namelist() if n.startswith('assets/public/static/js/main.') and n.endswith('.js'))
+ assert 'policy-consent' in styles and 'policy-consent' in scripts,'Policy consent missing from Android build'
+ assert any('assets/public/static/media/specialties-3d-sheet.' in name for name in packaged.namelist()),'3D specialty icons missing'
  assert 'discovery-review-controls' in styles and 'single-mobile-brand' in scripts,'Latest approved web interface missing'
  assert 'platform-stats-grid' in styles and '37770' in scripts,'Restored compact counters missing'
  assert '.ad-carousel .ad-slide-photo' in styles,'Full-width ad styling missing'
