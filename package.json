@@ -19,7 +19,7 @@
     "start": "react-scripts start",
     "prebuild": "npm run patch:safety",
     "build": "react-scripts build",
-    "postbuild": "node scripts/verify-build-output.js && node scripts/verify-catalog-integration.js && node scripts/verify-catalog-owner-portal.js && node scripts/verify-member-login-fix.js && node scripts/verify-visual-release.js && node --test functions/service-request-broadcast.test.cjs",
+    "postbuild": "node scripts/verify-build-output.js && node scripts/verify-catalog-integration.js && node scripts/verify-catalog-owner-portal.js && node scripts/verify-member-login-fix.js && node scripts/verify-visual-release.js && node --test functions/service-request-broadcast.test.cjs && node --test scripts/test-plan-video-policy.cjs",
     "sitemap": "node generate-sitemap.js",
     "test": "react-scripts test",
     "test:rules": "firebase emulators:exec --only firestore --project demo-daleel-rules \"node scripts/test-firestore-rules.js\"",

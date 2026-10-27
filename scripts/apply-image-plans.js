@@ -1,6 +1,7 @@
 const fs=require('fs');
 const path='src/App.jsx';let s=fs.readFileSync(path,'utf8');
 function replace(a,b,label){if(s.includes(b))return;let n=s.split(a).length-1;if(n!==1)throw Error(label+': expected one anchor, found '+n);s=s.replace(a,b)}
+replace('import { useState,','import { countPlanVideos } from "./plan-video-policy.cjs";\nimport { useState,','plan video helper');
 function planLine(key,line){const rx=new RegExp('^  '+key+':.*$', 'm');const found=s.match(rx);if(!found)throw Error('missing plan '+key);if(found[0]!==line)s=s.replace(rx,line)}
 planLine('starter','  starter: { label:"مبتدئ", price:100, color:"#0EA5E9", maxPhotos:5, maxPosts:0, maxVideos:0, searchPriority:4, features:["تصفح الأقسام والتواصل مع الأعضاء","ظهور في الدليل","رفع حتى 5 صور أعمال","تصميم إعلاني هدية"] },');
 planLine('basic','  basic: { label:"أساسي", price:200, color:C.info, maxPhotos:15, maxPosts:5, maxVideos:1, searchPriority:3, features:["5 منشورات شهريًا","فيديو واحد شهريًا","تفاعل وتعليقات على المنشورات","تصميمان إعلانيان وصفحة تعريفية"] },');
@@ -8,7 +9,7 @@ planLine('premium','  premium: { label:"مميز", price:300, color:C.gold, maxP
 planLine('vip','  vip: { label:"VIP", price:600, color:C.purple, maxPhotos:30, maxPosts:20, maxVideos:4, searchPriority:1, features:["ظهور على الصفحة الرئيسية","رفع حتى 30 صورة أعمال","4 فيديوهات لعرض الأعمال","صفحة تعريفية وفيديو ومنشورات هدية"] },');
 {const a='planPrices: { starter:60, basic:120, premium:250, vip:600, company:1000, elite:1500 },', b='planPrices: { starter:100, basic:200, premium:300, vip:600, company:1000, elite:1500 },';let n=s.split(a).length-1;if(n===2)s=s.split(a).join(b);else if(n!==0)throw Error('default prices: expected two anchors');}
 replace('  const videoLimit = getVideoLimit(memberType, cfg);','  const videoLimit = memberType==="basic"?1:memberType==="premium"?1:memberType==="vip"?4:getVideoLimit(memberType,cfg);','video entitlement');
-replace('setVideoCount(userPosts.filter(p => p.video).length);','setVideoCount((memberType==="basic"?postsThisMonth:userPosts).filter(p => p.video).length);','monthly basic video');
+replace('setVideoCount(userPosts.filter(p => p.video).length);','setVideoCount(countPlanVideos(userPosts,postsThisMonth,getMemberPlan(m)));','monthly basic video');
 replace('  const [photos, setPhotos] = useState(member.workPhotos || []);','  const [photos, setPhotos] = useState(member.workPhotos || []);\n  const photoLimit = PLANS[getMemberPlan(member)]?.maxPhotos ?? 5;','photo limit');
 replace('slice(0, 5 - photos.length)','slice(0, Math.max(0, photoLimit - photos.length))','uploads photo limit');
 replace('[...photos, ...urls].slice(0, 5)','[...photos, ...urls].slice(0, photoLimit)','saved photo limit');
