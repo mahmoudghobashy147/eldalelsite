@@ -5,28 +5,29 @@ import {ImageViewer} from './MediaFeatures';
 export default function AdsCarousel({ads=[],fallbackImage}) {
  const track=useRef(null),[active,setActive]=useState(0),[paused,setPaused]=useState(false),[viewImage,setViewImage]=useState(null),selected=useRef(0);
  selected.current=active;
+ const positionFor=(el,index)=>{const slide=el?.children[index];if(!slide)return 0;const trackRect=el.getBoundingClientRect(),slideRect=slide.getBoundingClientRect();return el.scrollLeft+slideRect.left-trackRect.left-(el.clientWidth-slideRect.width)/2;};
  const go=index=>{
   const target=Math.max(0,Math.min(index,ads.length-1));
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  track.current?.scrollTo({left:target*track.current.clientWidth,behavior:reduced?'auto':'smooth'});
+  if(track.current)track.current.scrollTo({left:positionFor(track.current,target),behavior:reduced?'auto':'smooth'});
  };
 
  useEffect(()=>{setActive(0);track.current?.scrollTo({left:0,behavior:'auto'});},[ads.length]);
- useEffect(()=>{const el=track.current;if(!el)return;const observer=new ResizeObserver(()=>el.scrollTo({left:selected.current*el.clientWidth,behavior:'auto'}));observer.observe(el);return()=>observer.disconnect();},[]);
+ useEffect(()=>{const el=track.current;if(!el)return;const observer=new ResizeObserver(()=>el.scrollTo({left:positionFor(el,selected.current),behavior:'auto'}));observer.observe(el);return()=>observer.disconnect();},[]);
  useEffect(()=>{
   if(paused||viewImage||ads.length<2)return;
   const timer=window.setInterval(()=>{
    const el=track.current;if(!el||document.hidden||el.contains(document.activeElement))return;
    const target=(selected.current+1)%ads.length;
    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-   el.scrollTo({left:target*el.clientWidth,behavior:reduced||target===0?'auto':'smooth'});
+   el.scrollTo({left:positionFor(el,target),behavior:reduced||target===0?'auto':'smooth'});
   },5000);
   return()=>window.clearInterval(timer);
  },[ads.length,paused,viewImage]);
  if(!ads.length)return null;
- return <section className="ad-carousel ad-fixed-frame" aria-label="الإعلانات" aria-roledescription="عارض إعلانات">
-  <div className="ad-track" dir="ltr" ref={track} tabIndex={0} aria-label="اسحب الإعلانات يمينًا ويسارًا" onKeyDown={event=>{if(event.key==='ArrowLeft'){event.preventDefault();go(active+1);}if(event.key==='ArrowRight'){event.preventDefault();go(active-1);}}} onScroll={event=>{const el=event.currentTarget;if(el.clientWidth)setActive(Math.max(0,Math.min(ads.length-1,Math.round(el.scrollLeft/el.clientWidth))));}}>
-   {ads.map((ad,index)=><article dir="rtl" className="ad-slide" key={ad.id||index} aria-label={`الإعلان ${index+1} من ${ads.length}`}>
+ return <section className={`ad-carousel ad-fixed-frame${ads.length>1?' ad-peek':''}`} aria-label="الإعلانات" aria-roledescription="عارض إعلانات">
+  <div className="ad-track" dir="ltr" ref={track} tabIndex={0} aria-label="اسحب الإعلانات يمينًا ويسارًا" onKeyDown={event=>{if(event.key==='ArrowLeft'){event.preventDefault();go(active+1);}if(event.key==='ArrowRight'){event.preventDefault();go(active-1);}}} onScroll={event=>{const el=event.currentTarget,center=el.getBoundingClientRect().left+el.clientWidth/2;let closest=0,distance=Infinity;Array.from(el.children).forEach((slide,i)=>{const r=slide.getBoundingClientRect(),delta=Math.abs(r.left+r.width/2-center);if(delta<distance){distance=delta;closest=i;}});setActive(closest);}}>
+   {ads.map((ad,index)=><article dir="rtl" className={`ad-slide${active===index?' ad-slide-active':''}`} key={ad.id||index} aria-label={`الإعلان ${index+1} من ${ads.length}`}>
     {(ad.imageUrl||fallbackImage)&&<button type="button" className="ad-artwork" tabIndex={active===index?0:-1} aria-label={`تكبير صورة الإعلان: ${ad.title||"إعلان"}`} onClick={()=>setViewImage(ad.imageUrl||fallbackImage)}><img className="ad-artwork-backdrop" src={ad.imageUrl||fallbackImage} alt="" aria-hidden="true" draggable="false"/><img className="ad-slide-photo" src={ad.imageUrl||fallbackImage} alt={ad.title||"إعلان"} draggable="false"/><span className="ad-expand" aria-hidden="true">⛶ تكبير</span></button>}
     
     <div className="ad-slide-copy"><span className="ad-label">{ad.badge||'مساحة إعلانية'}</span><h2>{ad.title||'إعلان'}</h2><p>{ad.desc||''}</p>{ad.phone&&<a className="ad-cta" href={`tel:${String(ad.phone).replace(/[^+\d]/g,'')}`} tabIndex={active===index?0:-1}>اعرف المزيد <span>‹</span></a>}</div>
