@@ -1,0 +1,67 @@
+name: Deploy customer and catalog update
+on:
+  push:
+    branches: [main]
+    paths: ['.github/customer-release-trigger.txt']
+permissions:
+  contents: write
+concurrency:
+  group: eldalel-customer-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build and test the reviewed update
+        run: |
+          npm ci
+          npm run build
+          npm ci --prefix functions
+          npm run test:play-safety
+          npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js"
+          test -f build/CNAME
+          grep -qx 'eldalel-elshamel.online' build/CNAME
+      - name: Authenticate and verify rules have not changed
+        shell: bash
+        run: |
+          umask 077
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-release.json"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/firebase-release.json"
+          else
+            echo '::error::Firebase deployment credential unavailable'
+            exit 1
+          fi
+          node -e 'const f=require(process.argv[1]);if(f.project_id!=="eldalel-elshamel"||!f.private_key||!f.client_email)process.exit(1)' "$RUNNER_TEMP/firebase-release.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-release.json" >> "$GITHUB_ENV"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-release.json" node scripts/guard-customer-release.cjs
+      - name: Deploy request notifications
+        run: npx firebase-tools deploy --project eldalel-elshamel --only functions:notifyOnServiceRequest --non-interactive
+      - name: Apply reviewed Firestore and Storage rules
+        run: |
+          node scripts/guard-customer-release.cjs
+          npx firebase-tools deploy --project eldalel-elshamel --only firestore:rules,storage --non-interactive
+      - name: Publish reviewed website
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf 'https://github.com/'
+          npx gh-pages -d build -m "Deploy customer and catalog update ${GITHUB_SHA}"
+      - name: Remove credential copy
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-release.json"
