@@ -1,0 +1,40 @@
+name: Deploy annual plan update
+on:
+  push:
+    branches: [main]
+    paths: ['.github/annual-plans-trigger.txt']
+permissions:
+  contents: write
+concurrency:
+  group: eldalel-annual-plans
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build and verify
+        run: |
+          npm ci
+          npm run build
+          npm ci --prefix functions
+          npm run test:play-safety
+          npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js"
+          test -f build/CNAME
+          grep -qx 'eldalel-elshamel.online' build/CNAME
+      - name: Publish website
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf 'https://github.com/'
+          npx gh-pages -d build -m "Deploy annual plans ${GITHUB_SHA}"
