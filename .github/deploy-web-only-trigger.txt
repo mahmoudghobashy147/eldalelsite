@@ -1,1 +1,1 @@
-Publish tested plans and navigation icons 5ac09b439d96d49ab30040a5e4f3cc84c058882b
+Deploy updated ad carousel 7ff728df15a59ef778494e0170ea8188321402b7
