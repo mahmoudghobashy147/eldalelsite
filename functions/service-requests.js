@@ -61,7 +61,7 @@ async function enforceRateLimit(request) {
   });
 }
 
-const createServiceRequest = onCall(async (request) => {
+const createServiceRequest = onCall({ invoker: "public" }, async (request) => {
   const text = cleanText(request.data?.text, 1500);
   if (!text) {
     throw new HttpsError("invalid-argument", "اكتب طلبك الأول");

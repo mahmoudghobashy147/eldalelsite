@@ -6516,7 +6516,7 @@ function App() {
   const lastBackPress = useRef(0);
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    let listenerHandle;
+    let listenerHandle, disposed=false;
     (async () => {
       const { App: CapApp } = await import("@capacitor/app");
       listenerHandle = await CapApp.addListener("backButton", () => {
@@ -6534,8 +6534,9 @@ function App() {
           showToast("اضغط رجوع مرة تانية للخروج");
         }
       });
+      if (disposed) listenerHandle?.remove?.();
     })();
-    return () => { listenerHandle?.remove?.(); };
+    return () => { disposed=true; listenerHandle?.remove?.(); };
   }, [showAuth, showQuickRequest, showPayment, selectedMember, activeTab]);
 
   // استقبال الإشعار وهو التطبيق مفتوح فعليًا قدام المستخدم (foreground) — بيتعرض كـ toast
