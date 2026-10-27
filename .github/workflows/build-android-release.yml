@@ -94,7 +94,7 @@ jobs:
         run: |
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           "$aapt" dump badging android/app/build/outputs/apk/debug/app-debug.apk > /tmp/eldalel-badging.txt
-          grep -q "package: name='com.company.eldalelelshamel' versionCode='7' versionName='1.0.6'" /tmp/eldalel-badging.txt
+          grep -q "package: name='com.company.eldalelelshamel' versionCode='8' versionName='1.0.7'" /tmp/eldalel-badging.txt
           grep -q "targetSdkVersion:'36'" /tmp/eldalel-badging.txt
           jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab | grep -q "jar verified"
 
