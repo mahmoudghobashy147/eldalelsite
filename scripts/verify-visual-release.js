@@ -11,7 +11,9 @@ assert(read('src/post-editor.js').includes('return {content,images:[...images]}'
 for(const asset of ['directory-logo','luxury-hero'])assert(fs.readdirSync(path.join(root,'build/static/media')).some(f=>f.startsWith(asset+'.')),'Missing built asset '+asset);
 assert(fs.existsSync(path.join(root,'build/images/hero-team.png')),'Keep existing social share image');
 assert(!app.includes('<BeforeAfter'),'The before/after section must be removed');
-assert(read('src/AdsCarousel.jsx').includes('window.setInterval'),'Ads must advance automatically');
+const ads=read('src/AdsCarousel.jsx');
+assert(/setTimeout\(\(\)=>go\(selected\.current\+1\),INTERVAL\)/.test(ads),'Ads must advance automatically');
+assert(ads.includes('const INTERVAL=5000') && ads.includes('!paused&&!viewImage&&visible&&!reduceMotion'),'Autoplay must honor pause and visibility');
 assert(app.includes('className="easy-create-account"'),'Creation action must remain prominent');
 assert(read('src/catalog.jsx').includes('<CompactCatalogHome'),'Compact catalog must be connected');
 assert(read('src/catalog.jsx').includes('<CatalogExplorer'),'Internal catalog explorer must be connected');
