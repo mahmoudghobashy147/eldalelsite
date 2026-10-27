@@ -24,8 +24,8 @@ jobs:
       - name: Generate Android project
         run: |
           npx cap add android
-          sed -i -E 's/versionCode[[:space:]]*=?[[:space:]]*1([[:space:]]|$)/versionCode = 2\1/' android/app/build.gradle
-          grep -Eq 'versionCode[[:space:]]*=?[[:space:]]*2([[:space:]]|$)' android/app/build.gradle
+          sed -i -E 's/versionCode[[:space:]]*=?[[:space:]]*1([[:space:]]|$)/versionCode = 3\1/' android/app/build.gradle
+          grep -Eq 'versionCode[[:space:]]*=?[[:space:]]*3([[:space:]]|$)' android/app/build.gradle
           cp -r android-icons/* android/app/src/main/res/
           cp google-services.json android/app/google-services.json
           sed -i "/classpath 'com.android.tools.build:gradle/a\\        classpath 'com.google.gms:google-services:4.4.2'" android/build.gradle

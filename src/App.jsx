@@ -912,7 +912,7 @@ const DB = {
       return response.data?.id || "";
     } catch(e) {
       console.error("postServiceRequest error:", e);
-      throw new Error("فشل إرسال الطلب");
+      throw e;
     }
   },
   // بندوّر على الصنايعية اللي تخصصهم مذكور جوه نص الطلب (وفي نفس المحافظة لو
@@ -3279,10 +3279,23 @@ const DirectMessagesScreen = ({ darkMode, currentUser }) => {
   const sub = darkMode ? "rgba(255,255,255,.45)" : C.gray;
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.uid) { setChats([]); setLoading(false); return; }
+    let alive=true, revision=0;
+    const uid=currentUser.uid, profiles=new Map();
     setLoading(true);
-    DB.getChats(currentUser.uid).then(c => { setChats(c); setLoading(false); }).catch(() => setLoading(false));
-  }, [currentUser]);
+    const unsub=onSnapshot(query(collection(db,"chats"),where("users","array-contains",uid)), snap=>{
+      const generation=++revision;
+      const rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.lastTime?.toMillis?.()||0)-(a.lastTime?.toMillis?.()||0));
+      const enriched=rows.map(c=>{const otherId=(c.users||[]).find(x=>x!==uid);return {...c,otherUserId:otherId,...(profiles.get(otherId)||{})};});
+      setChats(enriched);setLoading(false);
+      Promise.all(rows.map(async c=>{
+        const otherId=(c.users||[]).find(x=>x!==uid);
+        if(!otherId||profiles.has(otherId))return;
+        try{const p=await getDoc(doc(db,"members",otherId));if(p.exists()){const m=p.data();profiles.set(otherId,{otherUserName:m.name||"عضو",otherUserAvatar:m.avatarUrl||null,otherUserPlan:getMemberPlan(m)});}}catch(e){console.error("chat profile:",e);}
+      })).then(()=>{if(alive&&generation===revision)setChats(rows.map(c=>{const id=(c.users||[]).find(x=>x!==uid);return {...c,otherUserId:id,...(profiles.get(id)||{})};}));});
+    },error=>{console.error("chat list:",error);if(alive)setLoading(false);});
+    return ()=>{alive=false;revision++;unsub();};
+  }, [currentUser?.uid]);
 
   if (!currentUser) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", flexDirection: "column", gap: 13, background: bg, paddingBottom: 80 }}>
@@ -6485,6 +6498,7 @@ function App() {
   const [searchFilters, setSearchFilters] = useState({});
   const [showPayment, setShowPayment] = useState(false);
   const [showQuickRequest, setShowQuickRequest] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
   const [savedUpdated, setSavedUpdated] = useState(0);
   const [user, setUser] = useState(() => {
     try { const s = localStorage.getItem("daleel_user"); return s ? JSON.parse(s) : null; } catch { return null; }
@@ -6502,10 +6516,11 @@ function App() {
   const lastBackPress = useRef(0);
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    let listenerHandle;
+    let listenerHandle, disposed=false;
     (async () => {
       const { App: CapApp } = await import("@capacitor/app");
       listenerHandle = await CapApp.addListener("backButton", () => {
+        if (showAuth) { setShowAuth(false); setActiveTab("home"); return; }
         if (showQuickRequest) { setShowQuickRequest(false); return; }
         if (showPayment) { setShowPayment(false); return; }
         if (selectedMember) { setSelectedMember(null); navigateTo("/", { replace: true }); return; }
@@ -6519,9 +6534,10 @@ function App() {
           showToast("اضغط رجوع مرة تانية للخروج");
         }
       });
+      if (disposed) listenerHandle?.remove?.();
     })();
-    return () => { listenerHandle?.remove?.(); };
-  }, [showQuickRequest, showPayment, selectedMember, activeTab]);
+    return () => { disposed=true; listenerHandle?.remove?.(); };
+  }, [showAuth, showQuickRequest, showPayment, selectedMember, activeTab]);
 
   // استقبال الإشعار وهو التطبيق مفتوح فعليًا قدام المستخدم (foreground) — بيتعرض كـ toast
   // داخل التطبيق، عكس لما يكون التطبيق مقفول واللي بيتكفّل بالعرض هو الـ Service Worker
@@ -6537,8 +6553,7 @@ function App() {
     })();
     return () => unsub?.();
   }, []);
-  // Show auth after splash if not logged in
-  const [showAuth, setShowAuth] = useState(false);
+  // Authentication modal state is declared with the other navigation state.
   // لينك مشاركة البروفايل بقى بالشكل القابل للفهرسة: https://eldalel-elshamel.online/craftsmen/اسم-تخصص-مدينة-ID
   // ولسه بيدعم الرابط القديم ?member=ID عشان أي لينكات اتشاركت قبل كده تفضل شغالة
   // اللي بيفتحه لازم يشوف بروفايل الشخص ده على طول، مش الصفحة الرئيسية
