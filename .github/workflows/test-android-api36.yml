@@ -33,6 +33,9 @@ jobs:
       - name: Build debug Android app
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleDebug
+      - name: Verify unsigned release bundle builds
+        working-directory: android
+        run: ./gradlew bundleRelease && test -s app/build/outputs/bundle/release/app-release.aab
       - name: Save migration lockfiles and debug build
         uses: actions/upload-artifact@v4
         with:
