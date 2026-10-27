@@ -22,3 +22,8 @@ patch('    // A downgraded owner cannot change the catalog; published products r
     await assertFails(updateDoc(doc(bob,"catalogProducts","blocked-product"),{approvalStatus:"pending",active:false,updatedAt:new Date()}));
     // A downgraded owner cannot change the catalog; published products remain public.`);
 console.log('Direct publishing behavior tests staged.');
+const verifyFile='scripts/verify-catalog-owner-portal.js';let v=fs.readFileSync(verifyFile,'utf8');
+for(const [a,b] of [
+["must(owner.includes('إرسال طلب الإضافة'), 'owner request flow missing');","must(owner.includes('نشر النشاط'), 'direct catalog publishing action missing');"],
+["must(owner.includes('approvalStatus:\"pending\"'), 'new products are not forced into pending state');","must(owner.includes('approvalStatus:\"approved\",active:true,featured:false'), 'direct product publishing missing');"],
+["must(firestore.includes(\"request.resource.data.approvalStatus == 'pending'\"), 'pending-product security rule missing');","must(firestore.includes(\"request.resource.data.approvalStatus == 'approved'\"), 'direct publishing security rule missing');"]]){if(v.includes(b))continue;if(v.split(a).length!==2)throw Error('verify anchor missing');v=v.replace(a,b)}fs.writeFileSync(verifyFile,v);
