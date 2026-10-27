@@ -1,0 +1,28 @@
+name: Diagnose callable availability
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/diagnose-callable-availability.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe invalid requests only
+        shell: bash
+        run: |
+          for function in createServiceRequest sendSafetyMessage; do
+            url="https://us-central1-eldalel-elshamel.cloudfunctions.net/$function"
+            for origin in "https://eldalel-elshamel.online" "https://localhost"; do
+              echo "ENDPOINT=$function ORIGIN=$origin"
+              curl -sS --max-time 20 -D "$RUNNER_TEMP/headers" -o "$RUNNER_TEMP/body" \
+                -X OPTIONS "$url" -H "Origin: $origin" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type'
+              grep -Ei '^HTTP/|^access-control-allow-origin:' "$RUNNER_TEMP/headers" || true
+              curl -sS --max-time 20 -D "$RUNNER_TEMP/headers" -o "$RUNNER_TEMP/body" \
+                -X POST "$url" -H "Origin: $origin" -H 'Content-Type: application/json' --data '{"data":{}}'
+              grep -Ei '^HTTP/|^access-control-allow-origin:' "$RUNNER_TEMP/headers" || true
+              cat "$RUNNER_TEMP/body"
+              echo
+            done
+          done
