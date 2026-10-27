@@ -5,6 +5,12 @@ patch(fire,'    // ── Catalog owner approval workflow ──',`    // Subscr
     await assertFails(setDoc(doc(alice, "catalogBusinessRequests", "alice"), { ownerId:"alice", name:"Alice store", status:"pending" }));
     await assertFails(setDoc(doc(bob, "catalogBusinessRequests", "bob"), { ownerId:"bob", name:"Bob store", status:"pending" }));
     await assertSucceeds(updateDoc(doc(admin, "members", "bob"), { plan:"vip" }));
+    await assertSucceeds(updateDoc(doc(admin, "members", "bob"), { subscriptionEnd:new Date(0) }));
+    await assertFails(setDoc(doc(bob, "catalogBusinessRequests", "bob"), { ownerId:"bob", name:"Expired", status:"pending" }));
+    await assertSucceeds(updateDoc(doc(admin, "members", "bob"), { subscriptionEnd:null }));
+    await assertSucceeds(updateDoc(doc(admin, "config", "appSettings"), { planPrices:{vip:599} }));
+    await assertFails(setDoc(doc(bob, "catalogBusinessRequests", "bob"), { ownerId:"bob", name:"Below threshold", status:"pending" }));
+    await assertSucceeds(updateDoc(doc(admin, "config", "appSettings"), { planPrices:{vip:600} }));
     // ── Catalog owner approval workflow ──`);
 patch(fire,'    // ── Catalog owner quick hide/show controls ──',`    // A downgraded owner cannot change the catalog; published products remain public.
     await assertSucceeds(updateDoc(doc(admin, "members", "bob"), { plan:"basic" }));

@@ -3,6 +3,7 @@ function change(file, edits){let s=fs.readFileSync(file,'utf8');for(const [oldVa
 change('src/App.jsx',[
  ['form.plan==="starter"?"تفعيل مجاني 🎉":"التالي للدفع ←"','form.plan==="starter"?"تفعيل":"التالي للدفع ←"','activation label'],
  ['const [showLegal, setShowLegal] = useState(false);\n  const [policyAccepted, setPolicyAccepted] = useState(false);','const [showLegal, setShowLegal] = useState(false);\n  const [accountKind, setAccountKind] = useState("craftsman");\n  const [policyAccepted, setPolicyAccepted] = useState(false);','account kind state'],
+ ['const steps = mode==="register" ? ["الحساب","الملف","الباقة","الدفع","انتهى"] : [];','const steps = mode==="register" ? (accountKind==="customer"?["الحساب"]:["الحساب","الملف","الباقة","الدفع","انتهى"]) : [];','customer signup steps'],
  ['createdAt:new Date(), views:0, calls:0, waMessages:0, saves:0, rating:0, reviews:0, type:"starter"','createdAt:new Date(), views:0, calls:0, waMessages:0, saves:0, rating:0, reviews:0, type:data.type||"starter"','customer kind at creation'],
  ['{ name:form.name, phone:registrationPhone, phoneNormalized:registrationPhone, type:"starter" }','{ name:form.name, phone:registrationPhone, phoneNormalized:registrationPhone, type:accountKind==="customer"?"customer":"starter", accountKind, plan:"starter" }','account data'],
  ['      setCreatedUser(u);\n      setRegStep(2);','      setCreatedUser(u);\n      if(accountKind==="customer"){localStorage.setItem("daleel_user",JSON.stringify(u));onLogin(u);return;}\n      setRegStep(2);','customer no profession'],
