@@ -208,54 +208,10 @@ const notifyOnFollowerCreated = onDocumentCreated("members/{followingId}/followe
   }, `follower-created:${event.id}`);
 });
 
-const notifyOnServiceRequest = onDocumentCreated("serviceRequests/{requestId}", async (event) => {
-  const requestSnap = event.data;
-  if (!requestSnap) return;
-  const requestData = requestSnap.data() || {};
-  const text = String(requestData.text || "").trim();
-  if (!text) return;
-  const gov = String(requestData.gov || "").trim();
-
-  const matched = [];
-  let lastDoc = null;
-  let scanned = 0;
-  const pageSize = 500;
-  const maxScanned = 5000;
-
-  while (matched.length < 25 && scanned < maxScanned) {
-    let membersQuery = db.collection("members")
-      .where("status", "==", "approved")
-      .orderBy(admin.firestore.FieldPath.documentId())
-      .limit(pageSize);
-    if (lastDoc) membersQuery = membersQuery.startAfter(lastDoc);
-
-    const membersSnap = await membersQuery.get();
-    if (membersSnap.empty) break;
-    scanned += membersSnap.size;
-
-    for (const docSnap of membersSnap.docs) {
-      const member = { id: docSnap.id, ...docSnap.data() };
-      if (gov && String(member.gov || "").trim() !== gov) continue;
-      const specialty = String(member.specialty || "").trim();
-      if (!specialty || !arabicTextIncludes(text, specialty)) continue;
-      matched.push(member);
-      if (matched.length >= 25) break;
-    }
-
-    lastDoc = membersSnap.docs[membersSnap.docs.length - 1];
-    if (membersSnap.size < pageSize) break;
-  }
-
-  const body = text.length > 70 ? text.slice(0, 70) + "…" : text;
-  await Promise.all(matched.map((member) => createPersonalNotification(member.id, {
-    title: "🛠️ طلب جديد يناسب تخصصك",
-    body,
-    icon: "🛠️",
-    color: "#C9A84C",
-    type: "serviceRequest",
-    url: "/",
-    meta: { serviceRequestId: event.params.requestId },
-  }, `service-request:${event.id}`)));
+const { broadcastServiceRequest } = require("./service-request-broadcast.cjs");
+const notifyOnServiceRequest = onDocumentCreated({document:"serviceRequests/{requestId}",retry:true,timeoutSeconds:540}, async (event) => {
+  if (!event.data) return;
+  await broadcastServiceRequest({db,fieldPath:admin.firestore.FieldPath,requestId:event.params.requestId,request:event.data.data()||{},notify:createPersonalNotification});
 });
 
 module.exports = {
