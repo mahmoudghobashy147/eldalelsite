@@ -1,1 +1,1 @@
-Publish approved clearer mobile navigation and privacy modal edit, 2026-10-27.
+Publish tested plans and navigation icons 5ac09b439d96d49ab30040a5e4f3cc84c058882b
