@@ -15,6 +15,8 @@ patch('      active: false, featured: false, approvalStatus: "pending", createdA
 patch('    await assertFails(getDoc(doc(alice, "catalogProducts", "bob-product-1")));\n    await assertFails(getDoc(doc(anon, "catalogProducts", "bob-product-1")));','    await assertSucceeds(getDoc(doc(alice, "catalogProducts", "bob-product-1")));\n    await assertSucceeds(getDoc(doc(anon, "catalogProducts", "bob-product-1")));');
 patch('      active: true, featured: false, approvalStatus: "approved",\n    }));\n    await assertFails(setDoc(doc(alice, "catalogProducts", "alice-forged-product")','      active: true, featured: true, approvalStatus: "approved",\n    }));\n    await assertFails(setDoc(doc(alice, "catalogProducts", "alice-forged-product")');
 patch('    // A downgraded owner cannot change the catalog; published products remain public.',`    // An existing pending product can be published by its eligible owner; a rejected one cannot.
+    await assertSucceeds(setDoc(doc(bob,"catalogProducts","old-client-pending"),{ownerId:"bob",businessId:"bob",name:"Old client",categoryId:"ceramic",active:false,featured:false,approvalStatus:"pending"}));
+    await assertFails(getDoc(doc(anon,"catalogProducts","old-client-pending")));
     await assertSucceeds(setDoc(doc(admin,"catalogProducts","legacy-pending"),{ownerId:"bob",businessId:"bob",name:"Pending",categoryId:"ceramic",active:false,featured:false,approvalStatus:"pending"}));
     await assertSucceeds(updateDoc(doc(bob,"catalogProducts","legacy-pending"),{approvalStatus:"approved",active:true,updatedAt:new Date()}));
     await assertSucceeds(getDoc(doc(anon,"catalogProducts","legacy-pending")));
