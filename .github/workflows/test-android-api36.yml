@@ -17,8 +17,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Install Capacitor 8 and update lockfile
-        run: npm install @capacitor/android@^8 @capacitor/core@^8 @capacitor/app@^8 @capacitor/push-notifications@^8 @capacitor/cli@^8
+      - name: Install locked dependencies
+        run: npm ci
       - name: Build web app
         run: npm run build
       - name: Generate Android project
