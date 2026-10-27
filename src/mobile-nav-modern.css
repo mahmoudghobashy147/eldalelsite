@@ -6,3 +6,10 @@
 .mobile-nav-modern .tab-item.active .mobile-nav-icon{color:#ffe6a2;transform:translateY(-1px);background:linear-gradient(145deg,#c6a75742,#57481940);box-shadow:inset 0 1px #ffefba66,0 2px 3px #001b1055}
 .mobile-nav-modern .tab-item:focus-visible{outline:2px solid #ffe6a2;outline-offset:-2px}
 @media(max-width:360px){.mobile-nav-modern .tab-item{font-size:9.5px}.mobile-nav-modern .mobile-nav-icon{width:31px;height:30px}.mobile-nav-modern .mobile-nav-icon svg{width:23px;height:23px}}
+
+/* Raised, tactile icons that retain readable labels on small screens. */
+.mobile-nav-modern .mobile-nav-icon{background:linear-gradient(145deg,#668166 0%,#234f3b 48%,#123c2b 100%);border:1px solid #e5cb7b66;box-shadow:inset 0 1px 1px #fff7,inset 0 -3px 3px #05271988,0 3px 0 #09291d,0 5px 8px #00180e70;filter:none;transition:transform .18s ease,box-shadow .18s ease}
+.mobile-nav-modern .mobile-nav-icon svg{filter:drop-shadow(0 1px 0 #644600) drop-shadow(0 2px 2px #061d15bb)}
+.mobile-nav-modern .tab-item.active .mobile-nav-icon{background:linear-gradient(145deg,#f4e2a2 0%,#b79243 52%,#6d5b2e 100%);box-shadow:inset 0 1px 2px #fff9,inset 0 -3px 3px #583b2277,0 3px 0 #513f20,0 5px 9px #00180e88;transform:translateY(-2px)}
+.mobile-nav-modern .tab-item:active .mobile-nav-icon{transform:translateY(1px);box-shadow:inset 0 1px 2px #fff7,0 1px 1px #00180e88}
+@media(prefers-reduced-motion:reduce){.mobile-nav-modern .mobile-nav-icon{transition:none}}

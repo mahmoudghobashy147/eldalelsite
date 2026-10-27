@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import './mobile-nav-modern.css';
 
 const drawings = {
@@ -11,5 +11,6 @@ const drawings = {
   admin: <><path d="m3 7 4.5 3.5L12 4l4.5 6.5L21 7l-1.5 10.5h-15L3 7Z"/><path d="M5 21h14"/></>,
 };
 export default function MobileNavIcon({id}) {
-  return <span className="mobile-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{drawings[id] || drawings.profile}</svg></span>;
+  const gradient = 'nav-gold-' + useId().replace(/:/g, '');
+  return <span className="mobile-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke={'url(#'+gradient+')'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><defs><linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#fff9d1"/><stop offset=".5" stopColor="#f2d07a"/><stop offset="1" stopColor="#b78d38"/></linearGradient></defs>{drawings[id] || drawings.profile}</svg></span>;
 }
