@@ -72,3 +72,10 @@
 
 /* Fill the fixed ad frame without cropping; different aspect ratios may stretch. */
 .release-home .ad-fixed-frame .ad-slide-photo{object-fit:fill}
+
+/* Center the current ad and leave a visible hint of neighboring ads. */
+.release-home .ad-fixed-frame.ad-peek .ad-track{box-sizing:border-box;padding-inline:38px;gap:10px;scroll-padding-inline:38px}
+.release-home .ad-fixed-frame.ad-peek .ad-slide{flex:0 0 100%;scroll-snap-align:center;overflow:hidden;border-radius:17px;box-shadow:0 4px 12px #00190f60;opacity:.65;transition:opacity .35s ease}
+.release-home .ad-fixed-frame.ad-peek .ad-slide-active{opacity:1}
+@media(max-width:700px){.release-home .ad-fixed-frame.ad-peek .ad-track{padding-inline:30px;gap:8px;scroll-padding-inline:30px}.release-home .ad-fixed-frame.ad-peek .ad-slide{border-radius:14px}}
+@media(prefers-reduced-motion:reduce){.release-home .ad-fixed-frame.ad-peek .ad-slide{transition:none}}
