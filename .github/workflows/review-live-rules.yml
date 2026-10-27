@@ -30,6 +30,7 @@ jobs:
           fi
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase.json"
           node scripts/review-live-rules.cjs
+          node scripts/review-plan-stats.cjs
           for type in firestore storage; do
             if [ -f "/tmp/production-$type.rules" ]; then
               echo "REVIEW_DIFF_$type"
