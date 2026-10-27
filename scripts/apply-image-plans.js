@@ -9,7 +9,7 @@ planLine('premium','  premium: { label:"مميز", price:300, color:C.gold, maxP
 planLine('vip','  vip: { label:"VIP", price:600, color:C.purple, maxPhotos:30, maxPosts:20, maxVideos:4, searchPriority:1, features:["ظهور على الصفحة الرئيسية","رفع حتى 30 صورة أعمال","4 فيديوهات لعرض الأعمال","صفحة تعريفية وفيديو ومنشورات هدية"] },');
 {const a='planPrices: { starter:60, basic:120, premium:250, vip:600, company:1000, elite:1500 },', b='planPrices: { starter:100, basic:200, premium:300, vip:600, company:1000, elite:1500 },';let n=s.split(a).length-1;if(n===2)s=s.split(a).join(b);else if(n!==0)throw Error('default prices: expected two anchors');}
 replace('  const videoLimit = getVideoLimit(memberType, cfg);','  const videoLimit = memberType==="basic"?1:memberType==="premium"?1:memberType==="vip"?4:getVideoLimit(memberType,cfg);','video entitlement');
-replace('setVideoCount(userPosts.filter(p => p.video).length);','setVideoCount(countPlanVideos(userPosts,postsThisMonth,getMemberPlan(m)));','monthly basic video');
+replace('setVideoCount(userPosts.filter(p => p.video).length);','setVideoCount(planVideoPolicy.countPlanVideos(userPosts,postsThisMonth,getMemberPlan(m)));','monthly basic video');
 replace('  const [photos, setPhotos] = useState(member.workPhotos || []);','  const [photos, setPhotos] = useState(member.workPhotos || []);\n  const photoLimit = PLANS[getMemberPlan(member)]?.maxPhotos ?? 5;','photo limit');
 replace('slice(0, 5 - photos.length)','slice(0, Math.max(0, photoLimit - photos.length))','uploads photo limit');
 replace('[...photos, ...urls].slice(0, 5)','[...photos, ...urls].slice(0, photoLimit)','saved photo limit');
