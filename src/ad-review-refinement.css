@@ -79,3 +79,23 @@
 .release-home .ad-fixed-frame.ad-peek .ad-slide-active{opacity:1}
 @media(max-width:700px){.release-home .ad-fixed-frame.ad-peek .ad-track{padding-inline:30px;gap:8px;scroll-padding-inline:30px}.release-home .ad-fixed-frame.ad-peek .ad-slide{border-radius:14px}}
 @media(prefers-reduced-motion:reduce){.release-home .ad-fixed-frame.ad-peek .ad-slide{transition:none}}
+
+/* A lighter, stable advertisement frame with clear, compact controls. */
+.release-home .ad-fixed-frame .ad-slide{grid-template-rows:clamp(210px,32vw,320px) 54px;height:auto}
+.release-home .ad-fixed-frame .ad-slide-photo{object-fit:contain;background:#133a2d}
+.release-home .ad-fixed-frame .ad-slide-copy{height:54px;padding:6px 14px;gap:8px}
+.release-home .ad-fixed-frame .ad-slide-copy h2{font-size:15px}
+.release-home .ad-fixed-frame .ad-slide-copy .ad-cta{padding:7px 12px;font-size:11px}
+.release-home .ad-fixed-frame .ad-pagination{min-height:48px;padding:2px 8px;gap:4px}
+.release-home .ad-fixed-frame .ad-pages{display:flex;align-items:center;justify-content:center;gap:0}
+.release-home .ad-fixed-frame .ad-page-button{width:36px;height:44px;min-width:36px;padding:0;display:grid;place-items:center;border:0;background:transparent;box-shadow:none}
+.release-home .ad-fixed-frame .ad-page-button span{display:block;width:7px;height:7px;border-radius:50%;background:#9cae98}
+.release-home .ad-fixed-frame .ad-page-button[aria-pressed="true"] span{width:18px;border-radius:9px;background:#c9a84c}
+.release-home .ad-fixed-frame .ad-nav-button{width:44px;height:44px;min-width:44px}
+.release-home .ad-fixed-frame .ad-pagination-count{font-size:11px}
+@media(max-width:700px){
+ .release-home .ad-fixed-frame .ad-slide{grid-template-rows:clamp(185px,55vw,250px) 50px}
+ .release-home .ad-fixed-frame .ad-slide-copy{height:50px;padding:5px 10px}
+ .release-home .ad-fixed-frame.ad-peek .ad-track{padding-inline:20px;scroll-padding-inline:20px}
+ .release-home .ad-fixed-frame .ad-slide-photo{object-fit:contain}
+}
