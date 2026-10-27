@@ -1,1 +1,1 @@
-Release reviewed customer and catalog update cb58d946c80ad90bfd376901fd5f6b8c5e56d173
+Retry reviewed release with idempotent notification retry policy enabled

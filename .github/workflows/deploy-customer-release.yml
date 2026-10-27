@@ -49,7 +49,7 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-release.json" >> "$GITHUB_ENV"
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-release.json" node scripts/guard-customer-release.cjs
       - name: Deploy request notifications
-        run: npx firebase-tools deploy --project eldalel-elshamel --only functions:notifyOnServiceRequest --non-interactive
+        run: npx firebase-tools deploy --project eldalel-elshamel --only functions:notifyOnServiceRequest --non-interactive --force
       - name: Apply reviewed Firestore and Storage rules
         run: |
           node scripts/guard-customer-release.cjs
