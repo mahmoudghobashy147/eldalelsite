@@ -1,0 +1,7 @@
+const fs=require('fs');
+const file='src/App.jsx';let s=fs.readFileSync(file,'utf8');
+function replace(a,b){if(s.includes(b))return;if(s.split(a).length!==2)throw Error('Missing post editor anchor: '+a.slice(0,80));s=s.replace(a,b)}
+replace('const canPost = !limitsError && (memberInfo?.isAdmin===true || memberInfo?.status==="approved") && memberInfo?.accountKind !== "customer" && remainingPosts > 0;', 'const canPost = !limitsError && memberInfo?.accountKind !== "customer" && (memberInfo?.isAdmin===true || (memberInfo?.status==="approved" && remainingPosts > 0));');
+replace('const snap = await getDoc(doc(db, "members", user.uid));\n        const m = snap.exists() ? { id: snap.id, ...snap.data() } : null;\n        setMemberInfo(m);\n        const postSnapshot', 'await auth.authStateReady();\n        if (!auth.currentUser || auth.currentUser.uid !== user.uid) throw new Error("auth-session-unavailable");\n        const snap = await getDoc(doc(db, "members", user.uid));\n        const m = snap.exists() ? { id: snap.id, ...snap.data() } : null;\n        setMemberInfo(m);\n        if (m?.isAdmin === true) { setPostCount(0); setVideoCount(0); setLoadingLimits(false); return; }\n        const postSnapshot');
+replace('<span style={{ color: C.gold, fontWeight: 700 }}>متبقي لك {remainingPosts} من {postLimit} منشور هذا الشهر</span>', '<span style={{ color: C.gold, fontWeight: 700 }}>{memberInfo?.isAdmin ? "حساب الإدارة" : `متبقي لك ${remainingPosts} من ${postLimit} منشور هذا الشهر`}</span>');
+fs.writeFileSync(file,s);
