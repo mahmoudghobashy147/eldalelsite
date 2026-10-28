@@ -56,6 +56,9 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Verify Android target API
+        run: grep -E 'targetSdkVersion *= *36' android/variables.gradle
+
       - name: Copy custom app icons
         run: cp -r android-icons/* android/app/src/main/res/
 
