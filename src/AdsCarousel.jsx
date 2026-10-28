@@ -3,7 +3,8 @@ import './ad-review-refinement.css';
 import {ImageViewer} from './MediaFeatures';
 
 const INTERVAL=4500;
-export default function AdsCarousel({ads=[],fallbackImage}) {
+export default function AdsCarousel({ads:allAds=[]}) {
+ const ads=allAds.filter(ad=>ad.id!=='advertise-with-us' && ad.imageUrl && (!ad.status || ad.status==='active') && (!ad.endDate || new Date(String(ad.endDate).slice(0,10)+'T23:59:59').getTime()>=Date.now()));
  const track=useRef(null),frame=useRef(0),settle=useRef(0),selected=useRef(0);
  const [active,setActive]=useState(0),[paused,setPaused]=useState(false),[viewImage,setViewImage]=useState(null);
  const [visible,setVisible]=useState(!document.hidden),[interacting,setInteracting]=useState(false),[reduceMotion,setReduceMotion]=useState(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -40,7 +41,7 @@ export default function AdsCarousel({ads=[],fallbackImage}) {
  return <section className={`ad-carousel ad-fixed-frame ad-cinema${looping?' ad-peek':''}`} aria-label="الإعلانات" aria-roledescription="عارض إعلانات">
   <div className="ad-track" dir="ltr" ref={track} tabIndex={0} aria-label="اسحب الإعلانات يمينًا ويسارًا" onKeyDown={e=>{if(e.key==='ArrowLeft'){e.preventDefault();go(selected.current+1);}if(e.key==='ArrowRight'){e.preventDefault();go(selected.current-1);}}} onPointerDown={()=>setInteracting(true)} onPointerUp={()=>setInteracting(false)} onPointerCancel={()=>setInteracting(false)} onScroll={onScroll}>
    {slides.map((ad,i)=>{const real=looping?(i===0?ads.length-1:i===ads.length+1?0:i-1):i,clone=looping&&(i===0||i===ads.length+1);return <article dir="rtl" className={`ad-slide${active===real&&!clone?' ad-slide-active':''}`} key={clone?`clone-${i}`:ad.id||i} aria-label={`الإعلان ${real+1} من ${ads.length}`} aria-hidden={clone||active!==real}>
-    {(ad.imageUrl||fallbackImage)&&<button type="button" className="ad-artwork" tabIndex={!clone&&active===real?0:-1} aria-label={`تكبير صورة الإعلان: ${ad.title||"إعلان"}`} onClick={()=>clone||active!==real?go(i-1):setViewImage(ad.imageUrl||fallbackImage)}><img className="ad-slide-photo" src={ad.imageUrl||fallbackImage} alt={ad.title||"إعلان"} draggable="false" decoding="async" loading={i<=2?"eager":"lazy"}/><span className="ad-expand" aria-hidden="true">⛶ تكبير</span></button>}
+    {(ad.imageUrl)&&<button type="button" className="ad-artwork" tabIndex={!clone&&active===real?0:-1} aria-label={`عرض الإعلان: ${ad.title||"إعلان"}`} onClick={()=>{if(clone||active!==real){go(i-1);return;}const url=ad.targetUrl||ad.link||ad.url||ad.website;if(url && /^https?:\\/\\//i.test(url))window.open(url,"_blank","noopener,noreferrer");else if(ad.phone)window.location.href=`tel:${String(ad.phone).replace(/[^+\\d]/g,"")}`;else setViewImage(ad.imageUrl);}}><img className="ad-slide-photo" src={ad.imageUrl} alt={ad.title||"إعلان"} draggable="false" decoding="async" loading={i<=2?"eager":"lazy"}/></button>}
 
    </article>;})}
   </div>
