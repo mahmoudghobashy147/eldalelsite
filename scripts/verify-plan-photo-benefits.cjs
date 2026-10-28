@@ -9,3 +9,7 @@ for(const key of ['starter','basic','premium','vip','company','elite']){
 assert(app.includes('getPostLimit(key,cfg)'),'Display the configured monthly post limit');
 assert(app.includes('صور الأعمال: حتى ${pl.maxPhotos} صور'),'Show photo limits in registration');
 console.log('Five work photos and monthly post limits verified.');
+
+assert(app.includes('import planVideoPolicy from "./plan-video-policy.js";'),'Video quota helper must be bundled as JavaScript');
+const manifest=JSON.parse(fs.readFileSync('build/asset-manifest.json','utf8'));
+assert(!Object.values(manifest.files).some(file=>/plan-video-policy.*\\.cjs$/.test(file)),'Video quota code must not be emitted as a downloadable asset');
