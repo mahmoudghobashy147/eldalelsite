@@ -13,7 +13,7 @@ assert(fs.existsSync(path.join(root,'build/images/hero-team.png')),'Keep existin
 assert(!app.includes('<BeforeAfter'),'The before/after section must be removed');
 const ads=read('src/AdsCarousel.jsx');
 assert(/setTimeout\(\(\)=>go\(selected\.current\+1\),INTERVAL\)/.test(ads),'Ads must advance automatically');
-assert(ads.includes('const INTERVAL=5000') && ads.includes('!paused&&!viewImage&&visible&&!reduceMotion'),'Autoplay must honor pause and visibility');
+assert(ads.includes('const INTERVAL=4500') && ads.includes('!paused&&!viewImage&&visible&&!reduceMotion'),'Autoplay must honor pause and visibility');
 assert(app.includes('className="easy-create-account"'),'Creation action must remain prominent');
 assert(read('src/catalog.jsx').includes('<CompactCatalogHome'),'Compact catalog must be connected');
 assert(read('src/catalog.jsx').includes('<CatalogExplorer'),'Internal catalog explorer must be connected');
