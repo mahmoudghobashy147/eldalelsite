@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import './ad-review-refinement.css';
 import {ImageViewer} from './MediaFeatures';
 
-const INTERVAL=5000;
+const INTERVAL=4500;
 export default function AdsCarousel({ads=[],fallbackImage}) {
  const track=useRef(null),frame=useRef(0),settle=useRef(0),selected=useRef(0);
  const [active,setActive]=useState(0),[paused,setPaused]=useState(false),[viewImage,setViewImage]=useState(null);
@@ -41,7 +41,7 @@ export default function AdsCarousel({ads=[],fallbackImage}) {
   <div className="ad-track" dir="ltr" ref={track} tabIndex={0} aria-label="اسحب الإعلانات يمينًا ويسارًا" onKeyDown={e=>{if(e.key==='ArrowLeft'){e.preventDefault();go(selected.current+1);}if(e.key==='ArrowRight'){e.preventDefault();go(selected.current-1);}}} onPointerDown={()=>setInteracting(true)} onPointerUp={()=>setInteracting(false)} onPointerCancel={()=>setInteracting(false)} onScroll={onScroll}>
    {slides.map((ad,i)=>{const real=looping?(i===0?ads.length-1:i===ads.length+1?0:i-1):i,clone=looping&&(i===0||i===ads.length+1);return <article dir="rtl" className={`ad-slide${active===real&&!clone?' ad-slide-active':''}`} key={clone?`clone-${i}`:ad.id||i} aria-label={`الإعلان ${real+1} من ${ads.length}`} aria-hidden={clone||active!==real}>
     {(ad.imageUrl||fallbackImage)&&<button type="button" className="ad-artwork" tabIndex={!clone&&active===real?0:-1} aria-label={`تكبير صورة الإعلان: ${ad.title||"إعلان"}`} onClick={()=>clone||active!==real?go(i-1):setViewImage(ad.imageUrl||fallbackImage)}><img className="ad-slide-photo" src={ad.imageUrl||fallbackImage} alt={ad.title||"إعلان"} draggable="false" decoding="async" loading={i<=2?"eager":"lazy"}/><span className="ad-expand" aria-hidden="true">⛶ تكبير</span></button>}
-    <div className="ad-slide-copy"><h2>{ad.title||'إعلان'}</h2><p>{ad.desc||''}</p>{ad.phone&&<a className="ad-cta" href={`tel:${String(ad.phone).replace(/[^+\d]/g,'')}`} tabIndex={!clone&&active===real?0:-1}>اعرف المزيد <span>‹</span></a>}</div>
+
    </article>;})}
   </div>
   {looping&&<><div className="ad-pagination" aria-label="التنقل بين الإعلانات" dir="rtl"><button type="button" className="ad-nav-button" aria-label="الإعلان السابق" onClick={()=>go(selected.current-1)}>→</button><span className="ad-pagination-count">{(active+1).toLocaleString('ar-EG')}<small> / {ads.length.toLocaleString('ar-EG')}</small></span><div className="ad-pages" aria-label="اختيار الإعلان">{ads.map((ad,index)=><button type="button" className="ad-page-button" key={ad.id||index} aria-label={`انتقل للإعلان ${index+1}`} aria-pressed={active===index} onClick={()=>go(index)}><span aria-hidden="true"/></button>)}</div><button type="button" className="ad-nav-button" aria-label="الإعلان التالي" onClick={()=>go(selected.current+1)}>←</button><button type="button" className="ad-cinema-pause" aria-label={paused?"تشغيل حركة الإعلانات":"إيقاف حركة الإعلانات"} onClick={()=>setPaused(v=>!v)}>{paused?"▶":"Ⅱ"}</button></div><div className="ad-cinema-progress" aria-hidden="true"><span key={`${active}-${running}`} style={{animationPlayState:running?'running':'paused'}}/></div></>}
