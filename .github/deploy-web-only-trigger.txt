@@ -1,1 +1,1 @@
-Deploy layered coverflow carousel 31fad65392b83eb14c018636e392737c641bf426
+Deploy mobile coverflow proportions 82473fdfe5f9320fc6f41f9ea3946b574cae915f
