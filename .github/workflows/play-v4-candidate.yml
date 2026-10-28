@@ -1,0 +1,85 @@
+name: Build Play v4 candidate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [release/play-v4]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install locked web dependencies
+        run: npm ci
+
+      - name: Fix executable permissions
+        run: chmod -R +x node_modules/.bin
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Copy custom app icons
+        run: cp -r android-icons/* android/app/src/main/res/
+
+      - name: Add google-services.json
+        run: cp google-services.json android/app/google-services.json
+
+      - name: Add Google Services Gradle plugin
+        run: |
+          sed -i "/classpath 'com.android.tools.build:gradle/a\\        classpath 'com.google.gms:google-services:4.4.2'" android/build.gradle
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Set Play version
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/build.gradle')
+          text = p.read_text()
+          import re
+          text, n = re.subn(r'versionCode\s+\d+', 'versionCode 4', text)
+          assert n == 1
+          text, n = re.subn(r'versionName\s+"[^"]+"', 'versionName "2.1.4"', text)
+          assert n == 1
+          p.write_text(text)
+          p = Path('android/variables.gradle')
+          text = p.read_text()
+          text = re.sub(r'(compileSdkVersion|targetSdkVersion)\s*=\s*\d+', lambda m: m.group(1) + ' = 36', text)
+          p.write_text(text)
+          PY
+
+      - name: Build AAB and test APK
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew bundleRelease assembleDebug
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: eldalel-play-v4-unsigned
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/src/main/assets/public/asset-manifest.json
+            android/app/build.gradle
+            android/variables.gradle
+          if-no-files-found: error
