@@ -1,7 +1,7 @@
 const fs=require('fs');
 const path='src/App.jsx';let s=fs.readFileSync(path,'utf8');
 function replace(a,b,label){if(s.includes(b))return;let n=s.split(a).length-1;if(n!==1)throw Error(label+': expected one anchor, found '+n);s=s.replace(a,b)}
-replace('import { useState,','import planVideoPolicy from "./plan-video-policy.cjs";\nimport { useState,','plan video helper');
+replace('import { useState,','import planVideoPolicy from "./plan-video-policy.js";\nimport { useState,','plan video helper');
 function planLine(key,line){const rx=new RegExp('^  '+key+':.*$', 'm');const found=s.match(rx);if(!found)throw Error('missing plan '+key);if(found[0]!==line)s=s.replace(rx,line)}
 planLine('starter','  starter: { label:"مبتدئ", price:100, color:"#0EA5E9", maxPhotos:5, maxPosts:0, maxVideos:0, searchPriority:4, features:["تصفح الأقسام والتواصل مع الأعضاء","ظهور في الدليل","رفع حتى 5 صور أعمال","تصميم إعلاني هدية"] },');
 planLine('basic','  basic: { label:"أساسي", price:200, color:C.info, maxPhotos:15, maxPosts:5, maxVideos:1, searchPriority:3, features:["رفع حتى 15 صورة أعمال","5 منشورات شهريًا","فيديو واحد شهريًا","تفاعل وتعليقات على المنشورات","تصميمان إعلانيان وصفحة تعريفية"] },');
