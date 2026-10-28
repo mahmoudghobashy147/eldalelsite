@@ -127,3 +127,14 @@
  .release-home .ad-cinema.ad-peek .ad-slide{transition:none}
  .ad-cinema-progress span{animation:none;transform:scaleX(0)}
 }
+
+/* Responsive coverflow: preserve artwork and remove the unused text column. */
+.release-home .ad-cinema .ad-slide{grid-template-columns:minmax(0,1fr)}
+.release-home .ad-cinema.ad-peek .ad-track{padding-inline:14%;scroll-padding-inline:14%}
+.release-home .ad-cinema.ad-peek .ad-slide{transform:perspective(900px) scale(.86);opacity:.62}
+.release-home .ad-cinema.ad-peek .ad-slide-active{transform:perspective(900px) scale(1);opacity:1}
+.release-home .ad-cinema .ad-artwork{cursor:pointer}
+@media(max-width:700px){
+ .release-home .ad-cinema.ad-peek .ad-track{padding-inline:12%;scroll-padding-inline:12%}
+}
+@media(prefers-reduced-motion:reduce){.release-home .ad-cinema.ad-peek .ad-slide{transition:none}}
