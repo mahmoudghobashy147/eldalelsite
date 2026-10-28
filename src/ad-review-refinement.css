@@ -138,3 +138,26 @@
  .release-home .ad-cinema.ad-peek .ad-track{padding-inline:12%;scroll-padding-inline:12%}
 }
 @media(prefers-reduced-motion:reduce){.release-home .ad-cinema.ad-peek .ad-slide{transition:none}}
+
+/* Layered coverflow based on the supplied video. */
+.release-home .video-coverflow{padding:16px 14px 12px;overflow:hidden;background:linear-gradient(145deg,#fafbf5,#e7ede2);border:1px solid #d4ddcc;border-radius:24px;box-shadow:0 7px 18px #123b2524}
+.video-coverflow-stage{position:relative;height:clamp(250px,33vw,360px);perspective:1100px;touch-action:pan-y;overflow:hidden}
+.video-coverflow-card{position:absolute;left:50%;top:4%;width:58%;height:90%;opacity:0;visibility:hidden;transform:translateX(-50%) scale(.75);transition:transform .65s ease,opacity .65s ease,visibility .65s;will-change:transform;overflow:hidden;border-radius:18px;box-shadow:0 12px 26px #113c2b50}
+.video-coverflow-card.current{visibility:visible;opacity:1;z-index:3;transform:translateX(-50%) scale(1)}
+.video-coverflow-card.previous{visibility:visible;opacity:.64;z-index:2;transform:translateX(-96%) scale(.84) rotateY(10deg)}
+.video-coverflow-card.next{visibility:visible;opacity:.64;z-index:2;transform:translateX(-4%) scale(.84) rotateY(-10deg)}
+.video-coverflow-art{position:relative;display:block;width:100%;height:100%;border:0;padding:0;background:#164333;overflow:hidden;cursor:pointer}
+.video-coverflow-backdrop{position:absolute;inset:-10%;width:120%;height:120%;object-fit:cover;filter:blur(14px) brightness(.42);pointer-events:none}
+.video-coverflow-photo{position:relative;display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.video-coverflow-art:focus-visible{outline:3px solid #d5b659;outline-offset:-4px}
+.video-coverflow-controls{display:flex;align-items:center;gap:8px;color:#254f39;min-height:48px}
+.video-coverflow-count{font-size:11px;white-space:nowrap;color:#71857a}
+.video-coverflow-dots{display:flex;flex:1;align-items:center;justify-content:center;gap:3px;min-width:0;overflow-x:auto}
+.video-coverflow-dots button{width:26px;height:40px;min-width:26px;padding:0;border:0;background:transparent;cursor:pointer}
+.video-coverflow-dots button:after{content:'';display:block;width:7px;height:7px;margin:auto;border-radius:8px;background:#b9c9bc}
+.video-coverflow-dots button[aria-pressed="true"]:after{width:17px;background:#237451}
+.video-coverflow-control{width:42px;height:42px;min-width:42px;border:1px solid #d4dfd4;border-radius:50%;background:#fff;color:#225b40;font:700 20px sans-serif;cursor:pointer}
+.video-coverflow-progress{height:3px;background:#d5e1d6;border-radius:5px;overflow:hidden}
+.video-coverflow-progress span{display:block;height:100%;width:100%;background:#2d805b;transform-origin:left;animation:ad-cinema-clock 4.5s linear both}
+@media(max-width:700px){.release-home .video-coverflow{padding:12px 9px 10px;border-radius:19px}.video-coverflow-stage{height:clamp(220px,66vw,310px)}.video-coverflow-card{width:60%;border-radius:16px}.video-coverflow-controls{gap:4px}.video-coverflow-control{width:40px;height:40px;min-width:40px}.video-coverflow-dots button{width:22px;min-width:22px}}
+@media(prefers-reduced-motion:reduce){.video-coverflow-card{transition:none}.video-coverflow-progress span{animation:none;transform:scaleX(0)}}
