@@ -161,3 +161,9 @@
 .video-coverflow-progress span{display:block;height:100%;width:100%;background:#2d805b;transform-origin:left;animation:ad-cinema-clock 4.5s linear both}
 @media(max-width:700px){.release-home .video-coverflow{padding:12px 9px 10px;border-radius:19px}.video-coverflow-stage{height:clamp(220px,66vw,310px)}.video-coverflow-card{width:60%;border-radius:16px}.video-coverflow-controls{gap:4px}.video-coverflow-control{width:40px;height:40px;min-width:40px}.video-coverflow-dots button{width:22px;min-width:22px}}
 @media(prefers-reduced-motion:reduce){.video-coverflow-card{transition:none}.video-coverflow-progress span{animation:none;transform:scaleX(0)}}
+
+/* On phones, favor the landscape artwork while keeping adjacent ads visible. */
+@media(max-width:700px){
+ .video-coverflow-stage{height:clamp(165px,49vw,245px)}
+ .video-coverflow-card{width:78%;height:90%}
+}
