@@ -1,4 +1,4 @@
-name: Build Play v4 candidate
+name: Build Play v5 candidate
 
 on:
   workflow_dispatch:
@@ -57,14 +57,17 @@ jobs:
           p = Path('android/app/build.gradle')
           text = p.read_text()
           import re
-          text, n = re.subn(r'versionCode\s+\d+', 'versionCode 4', text)
+          text, n = re.subn(r'versionCode\s+\d+', 'versionCode 5', text)
           assert n == 1
-          text, n = re.subn(r'versionName\s+"[^"]+"', 'versionName "2.1.4"', text)
+          text, n = re.subn(r'versionName\s+"[^"]+"', 'versionName "2.1.5"', text)
           assert n == 1
           p.write_text(text)
           p = Path('android/variables.gradle')
           text = p.read_text()
           text = re.sub(r'(compileSdkVersion|targetSdkVersion)\s*=\s*\d+', lambda m: m.group(1) + ' = 36', text)
+          text, n = re.subn(r'minSdkVersion\s*=\s*\d+', 'minSdkVersion = 24', text)
+          assert n == 1
+          assert 'targetSdkVersion = 36' in text
           p.write_text(text)
           PY
 
@@ -75,7 +78,7 @@ jobs:
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: eldalel-play-v4-unsigned
+          name: eldalel-play-v5-unsigned
           path: |
             android/app/build/outputs/bundle/release/app-release.aab
             android/app/build/outputs/apk/debug/app-debug.apk
