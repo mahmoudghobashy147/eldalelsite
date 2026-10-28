@@ -48,6 +48,12 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase.json" >> "$GITHUB_ENV"
       - name: Deploy only the service request callable
         run: npx firebase-tools deploy --project eldalel-elshamel --only functions:createServiceRequest --non-interactive
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Allow public invocation of the validated request callable
+        shell: bash
+        run: |
+          gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
+          gcloud run services add-iam-policy-binding createservicerequest --project=eldalel-elshamel --region=us-central1 --member=allUsers --role=roles/run.invoker --quiet
       - name: Verify the live callable with an invalid request
         shell: bash
         run: |
