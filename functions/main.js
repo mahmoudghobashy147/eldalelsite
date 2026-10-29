@@ -3,6 +3,7 @@
 // feature modules kept separate so auth/security code stays isolated.
 module.exports = {
   ...require("./index"),
+  ...require("./play-billing/index.cjs"),
   ...require("./notification-triggers"),
   ...require("./engagement-triggers"),
   ...require("./service-requests"),
