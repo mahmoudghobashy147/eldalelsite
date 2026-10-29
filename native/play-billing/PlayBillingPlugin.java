@@ -57,7 +57,7 @@ public class PlayBillingPlugin extends Plugin implements PurchasesUpdatedListene
       if(d.getSubscriptionOfferDetails()!=null) for(ProductDetails.SubscriptionOfferDetails o:d.getSubscriptionOfferDetails()) if("annual-prepaid".equals(o.getBasePlanId()) && o.getOfferId()==null) offer=o;
       if(offer==null){call.reject("الاشتراك السنوي غير متاح");return;}
       List<ProductDetails.PricingPhase> phases=offer.getPricingPhases().getPricingPhaseList();
-      if(phases.size()!=1 || !"P1Y".equals(phases.get(0).getBillingPeriod())){call.reject("إعداد مدة الباقة غير صحيح");return;}
+      if(phases.size()!=1 || phases.get(0).getRecurrenceMode()!=3 || !"P1Y".equals(phases.get(0).getBillingPeriod())){call.reject("إعداد مدة الباقة غير صحيح");return;}
       if(!buy){
         JSObject out=new JSObject();out.put("price",phases.get(0).getFormattedPrice());call.resolve(out);return;
       }

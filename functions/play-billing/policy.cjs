@@ -5,7 +5,7 @@ const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const accountId = uid => hash(`eldalel-play:${uid}`);
 function entitlement(purchase, uid, now = Date.now()) {
   if (purchase.externalAccountIdentifiers?.obfuscatedExternalAccountId !== accountId(uid)) throw Error('account-mismatch');
-  const items = (purchase.lineItems || []).filter(item => PRODUCTS[item.productId] && item.offerDetails?.basePlanId === 'annual-prepaid');
+  const items = (purchase.lineItems || []).filter(item => Object.hasOwn(PRODUCTS, item.productId || '') && item.prepaidPlan && item.offerDetails?.basePlanId === 'annual-prepaid');
   if (items.length !== 1) throw Error('unexpected-product');
   const item = items[0];
   const expiry = Date.parse(item.expiryTime);

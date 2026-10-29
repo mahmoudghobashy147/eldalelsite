@@ -3,7 +3,7 @@ const {accountId,hash}=require('./policy.cjs');
 function harness(){
  const rows=new Map([['members/alice',{accountKind:'subscriber',status:'pending'}],['members/bob',{accountKind:'subscriber',status:'pending'}]]);
  let acknowledgements=0;
- let purchase={subscriptionState:'SUBSCRIPTION_STATE_ACTIVE',startTime:new Date().toISOString(),externalAccountIdentifiers:{obfuscatedExternalAccountId:accountId('alice')},acknowledgementState:'ACKNOWLEDGEMENT_STATE_PENDING',lineItems:[{productId:'eldalel_basic_annual',offerDetails:{basePlanId:'annual-prepaid'},expiryTime:new Date(Date.now()+86400000).toISOString()}]};
+ let purchase={subscriptionState:'SUBSCRIPTION_STATE_ACTIVE',startTime:new Date().toISOString(),externalAccountIdentifiers:{obfuscatedExternalAccountId:accountId('alice')},acknowledgementState:'ACKNOWLEDGEMENT_STATE_PENDING',lineItems:[{productId:'eldalel_basic_annual',prepaidPlan:{},offerDetails:{basePlanId:'annual-prepaid'},expiryTime:new Date(Date.now()+86400000).toISOString()}]};
  const ref=path=>({path,get:async()=>snap(path)}),snap=path=>({exists:rows.has(path),data:()=>rows.get(path)});
  const db={collection:name=>({doc:id=>ref(name+'/'+id)}),runTransaction:async fn=>{const changes=[];await fn({get:async r=>snap(r.path),set:(r,d)=>changes.push([r.path,{...rows.get(r.path),...d}]),update:(r,d)=>changes.push([r.path,{...rows.get(r.path),...d}])});changes.forEach(([k,v])=>rows.set(k,v))}};
  class HttpsError extends Error{constructor(code,message){super(message);this.code=code}}

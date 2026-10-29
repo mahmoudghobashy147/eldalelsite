@@ -34,6 +34,11 @@ if(!s.includes('// PLAY BILLING INTEGRATION')){
  s=s.replaceAll('أكمل الاشتراك وتواصل مع الإدارة لتأكيد الدفع وتفعيل حسابك.','أكمل الاشتراك من شاشة الباقات لتفعيل حسابك.');
  s=s.replaceAll('أكمل بياناتك وسداد الاشتراك، ثم تواصل مع الإدارة لتأكيد الدفع وتفعيل حسابك.','أكمل بياناتك ثم افتح شاشة الاشتراك لإتمام التفعيل.');
  once('<GlobalStyles/><style>{trustStyles}</style>','<GlobalStyles/><style>{trustStyles}</style><PlayPurchaseSync uid={user?.uid} invoke={invokePlayBilling}/>');
+ // Manual renewals performed by admin must detach the previous Play token.
+ s='import { deleteField } from "firebase/firestore";\n'+s;
+ s=s.replace('{ status:"approved", approvedAt: new Date(), subscriptionStart:', '{ status:"approved", billingProvider:"manual", playTokenHash:deleteField(), approvedAt: new Date(), subscriptionStart:');
+ s=s.replace('{ subscriptionEnd: newEnd, subscriptionRenewedAt:', '{ billingProvider:"manual", playTokenHash:deleteField(), subscriptionEnd: newEnd, subscriptionRenewedAt:');
+ s=s.replace('updateData.subscriptionEnd = subEnd;', 'updateData.subscriptionEnd = subEnd; updateData.billingProvider="manual"; updateData.playTokenHash=deleteField();');
  // Native policy follows Play refunds; retain the existing website payment term.
  s=s.replace('const PROGRAM_PAYMENT_TERM = "','const PROGRAM_PAYMENT_TERM = isPlayApp() ? "اشتراكات التطبيق تُشترى عبر Google Play لمدة سنة دون تجديد تلقائي. تخضع طلبات الاسترداد لسياسات Google Play والحقوق القانونية الواجبة. لا يشترط استلام تصميم لتفعيل الشراء المؤكد." : "');
  s=s.replace('const PromoBanner = ({ cfg }) => (','const PromoBanner = ({ cfg }) => isPlayApp() ? null : (');
