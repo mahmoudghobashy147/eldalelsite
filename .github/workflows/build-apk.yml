@@ -51,6 +51,9 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Install Google Play Billing native bridge
+        run: node scripts/install-play-billing-native.cjs
+
       - name: Build APK (Debug)
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleDebug
