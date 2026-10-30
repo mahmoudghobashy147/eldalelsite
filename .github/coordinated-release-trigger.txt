@@ -1,0 +1,3 @@
+Authorized release: customer roles, unique phone registration, gated Play Billing
+Validated web/rules/native at 6a7d8f5088517009b26103a0cf0715ec31efee6b.
+2026-10-30
