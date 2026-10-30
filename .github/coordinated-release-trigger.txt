@@ -1,3 +1,2 @@
-Resume authorized release after verified successful function creation.
-Leave Artifact Registry cleanup policy unchanged; verify all seven functions ACTIVE.
-2026-10-30T17:11Z
+Resume verified release using 12 independent phone-index workers. No member profile changes.
+2026-10-30T17:20Z
