@@ -2,9 +2,12 @@ name: Publish coordinated customer release
 on:
   push:
     branches: [main]
-    paths: [.github/customer-release-trigger.txt]
+    paths: [.github/coordinated-release-trigger.txt]
 permissions:
   contents: write
+concurrency:
+  group: eldalel-coordinated-release
+  cancel-in-progress: false
 jobs:
   publish:
     runs-on: ubuntu-latest
