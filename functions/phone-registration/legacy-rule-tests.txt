@@ -1,0 +1,14 @@
+    // Published v5 clients remain compatible, but cannot bypass an existing phone owner.
+    await testEnv.withSecurityRulesDisabled(async ctx=>{
+      await setDoc(doc(ctx.firestore(),'config','phoneRegistrationPolicy'),{legacyIndexReady:true});
+      await setDoc(doc(ctx.firestore(),'memberPhoneIndex','01022222222'),{uid:'existing-phone-owner'});
+    });
+    const legacyNew=testEnv.authenticatedContext('legacy-new',{email:'01133333333@daleel.app'}).firestore();
+    await assertSucceeds(setDoc(doc(legacyNew,'members','legacy-new'),{uid:'legacy-new',phone:'01133333333',phoneNormalized:'01133333333',accountKind:'craftsman',type:'starter',plan:'starter',status:'pending'}));
+    const duplicateCustomer=testEnv.authenticatedContext('duplicate-customer',{email:'01022222222@daleel.app'}).firestore();
+    await assertFails(setDoc(doc(duplicateCustomer,'members','duplicate-customer'),{uid:'duplicate-customer',phone:'01022222222',phoneNormalized:'01022222222',accountKind:'customer',type:'customer',plan:'starter'}));
+    const duplicateSubscriber=testEnv.authenticatedContext('duplicate-subscriber',{email:'01022222222@daleel.app'}).firestore();
+    await assertFails(setDoc(doc(duplicateSubscriber,'members','duplicate-subscriber'),{uid:'duplicate-subscriber',phone:'01022222222',phoneNormalized:'01022222222',accountKind:'craftsman',type:'starter',plan:'vip',status:'pending'}));
+    const forgedNumber=testEnv.authenticatedContext('forged-number',{email:'01244444444@daleel.app'}).firestore();
+    await assertFails(setDoc(doc(forgedNumber,'members','forged-number'),{uid:'forged-number',phone:'01555555555',phoneNormalized:'01555555555',accountKind:'craftsman',type:'starter',plan:'starter',status:'pending'}));
+    await assertFails(getDoc(doc(legacyNew,'memberPhoneIndex','01022222222')));
