@@ -1,0 +1,10 @@
+    function uniqueLoginPhone(data) {
+      let phone = data.get('phoneNormalized', '');
+      let indexPath = /databases/$(database)/documents/memberPhoneIndex/$(phone);
+      let policyPath = /databases/$(database)/documents/config/phoneRegistrationPolicy;
+      return phone is string && phone.matches('^01[0125][0-9]{8}$')
+        && data.get('phone', '') == phone
+        && request.auth.token.get('email', '') == phone + '@daleel.app'
+        && exists(policyPath) && get(policyPath).data.get('legacyIndexReady', false) == true
+        && (!exists(indexPath) || get(indexPath).data.get('uid', '') == request.auth.uid);
+    }

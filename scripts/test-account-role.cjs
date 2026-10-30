@@ -1,0 +1,11 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const {isCustomerAccount,accountRole,accountRoleLabel,accountPlanLabel,needsPaidActivation}=require('../src/account-role.js');
+const plans={starter:{label:'مبتدئ'},basic:{label:'أساسي'},vip:{label:'VIP'}};
+test('current customer is free even with legacy starter tier',()=>{const m={accountKind:'customer',type:'customer',plan:'starter'};assert.equal(accountPlanLabel(m,plans),'باقة العميل — مجانية');assert.equal(needsPaidActivation(m),false)});
+test('customer cannot be classified as paid by a stale VIP tier',()=>{const m={accountKind:'customer',plan:'vip'};assert.equal(needsPaidActivation(m),false);assert.equal(accountRole(m),'customer')});
+test('legacy customer records without accountKind are recognized',()=>assert.equal(isCustomerAccount({type:'customer',plan:'starter'}),true));
+test('new customer plan is recognized',()=>assert.equal(isCustomerAccount({plan:'customer'}),true));
+test('starter subscriber still requires paid activation',()=>{const m={accountKind:'craftsman',plan:'starter'};assert.equal(needsPaidActivation(m),true);assert.equal(accountPlanLabel(m,plans),'مبتدئ')});
+test('professional labels retain company and craftsman distinction',()=>{assert.equal(accountRoleLabel({type:'company'}),'مشترك / شركة');assert.equal(accountRoleLabel({type:'craftsman'}),'مشترك / صنايعي')});
+test('paid basic subscription remains unchanged',()=>assert.equal(accountPlanLabel({accountKind:'craftsman',plan:'basic'},plans),'أساسي'));
+test('missing member cannot be charged',()=>assert.equal(needsPaidActivation(null),false));

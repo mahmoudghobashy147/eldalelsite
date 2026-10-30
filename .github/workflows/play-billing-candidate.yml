@@ -1,0 +1,57 @@
+name: Validate Play Billing candidate
+on:
+  push:
+    branches: [feature/google-play-billing, release/customer-and-billing]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm --prefix functions ci
+      - run: npm run test:play-billing
+      - run: npm run build
+      - run: npx cap add android
+      - run: cp -r android-icons/* android/app/src/main/res/
+      - run: cp google-services.json android/app/google-services.json
+      - name: Add Google Services plugin
+        run: |
+          sed -i "/classpath 'com.android.tools.build:gradle/a\\        classpath 'com.google.gms:google-services:4.4.2'" android/build.gradle
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+      - run: npx cap sync android
+      - run: node scripts/install-play-billing-native.cjs
+      - name: Set candidate SDK and version
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('android/variables.gradle')
+          s=p.read_text()
+          s=re.sub(r'(compileSdkVersion|targetSdkVersion)\s*=\s*\d+',lambda m:m.group(1)+' = 36',s)
+          s=re.sub(r'minSdkVersion\s*=\s*\d+','minSdkVersion = 24',s)
+          p.write_text(s)
+          p=Path('android/app/build.gradle');s=p.read_text()
+          s=re.sub(r'versionCode\s+\d+','versionCode 6',s)
+          s=re.sub(r'versionName\s+"[^"]+"','versionName "2.1.6"',s)
+          p.write_text(s)
+          PY
+      - name: Compile native billing bridge
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew bundleRelease assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: play-billing-candidate-unsigned-not-for-upload
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/apk/debug/app-debug.apk
