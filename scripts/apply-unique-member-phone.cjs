@@ -3,7 +3,11 @@ if(!s.includes('// unique-member-phone-v1')){
  const once=(a,b)=>{if(s.split(a).length!==2)throw Error('Unique phone anchor: '+a.slice(0,80));s=s.replace(a,b)};
  s='// unique-member-phone-v1\n'+s;
  once('    const cred = await createUserWithEmailAndPassword(auth, email, password);',`    await httpsCallable(functions,"assertMemberPhoneAvailable")({phone:data.phone});
-    const cred = await createUserWithEmailAndPassword(auth, email, password);`);
+    let cred;
+    if(auth.currentUser?.email===email && !(await getDoc(doc(db,"members",auth.currentUser.uid))).exists()){
+      await reauthenticateWithCredential(auth.currentUser,EmailAuthProvider.credential(email,password));
+      cred={user:auth.currentUser};
+    }else{cred=await createUserWithEmailAndPassword(auth,email,password);}`);
  once('    await setDoc(doc(db,"members",cred.user.uid), { ...data, uid:cred.user.uid, createdAt:new Date(), views:0, calls:0, waMessages:0, saves:0, rating:0, reviews:0, type:data.type||"starter" });','    await httpsCallable(functions,"completeMemberRegistration")({name:data.name,phone:data.phone,accountKind:data.accountKind});');
  once('if(e.code==="auth/email-already-in-use") setError("رقم الموبايل مسجل مسبقاً، سجّل دخولك");','if(e.code==="auth/email-already-in-use"||e.code==="functions/already-exists") setError("رقم الموبايل مسجل بالفعل. سجّل الدخول بحسابك الحالي؛ لا يمكن استخدام نفس الرقم لحساب عميل ومشترك.");');
  s=s.replaceAll('    if (digits.startsWith("20") && digits.length >= 12) digits = "0" + digits.slice(2);','    if (digits.startsWith("0020")) digits = digits.slice(2);\n    if (digits.startsWith("20") && digits.length === 12) digits = "0" + digits.slice(2);');
