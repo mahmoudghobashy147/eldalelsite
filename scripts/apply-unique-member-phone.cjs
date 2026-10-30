@@ -31,7 +31,7 @@ if(!rules.includes('// unique-member-phone-rules')){
  const previous=rules.slice(start,end);
  rules=rules.slice(0,start)+'      // unique-member-phone-rules: legacy clients use canonical Auth and the private index.\n'+previous.replace('allow create: if self(memberId)','allow create: if self(memberId) && uniqueLoginPhone(request.resource.data)')+rules.slice(end);
  const helper=fs.readFileSync('functions/phone-registration/legacy-rule.txt','utf8');
- rules=rules.replace('    function memberProtectedFieldsUnchanged() {',helper+'\n    function memberProtectedFieldsUnchanged() {');
+ rules=rules.replace('    function memberProtectedFieldsUnchanged() {',()=>helper+'\n    function memberProtectedFieldsUnchanged() {');
  rules=rules.replace("        'accountKind',","        'accountKind',\n        'phone', 'phoneNormalized',");
  fs.writeFileSync('firestore.rules',rules);
 }
