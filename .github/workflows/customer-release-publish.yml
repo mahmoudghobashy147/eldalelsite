@@ -49,7 +49,19 @@ jobs:
       - name: Validate additive rules and old-client compatibility
         run: npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js && node scripts/test-catalog-rules.js"
       - name: Deploy only registration and gated billing functions
-        run: npx firebase-tools deploy --project eldalel-elshamel --only functions:assertMemberPhoneAvailable,functions:completeMemberRegistration,functions:indexMemberPhone,functions:preparePlayPurchase,functions:verifyPlayPurchase,functions:playBillingNotifications,functions:reconcilePlayPurchases --non-interactive
+        shell: bash
+        run: |
+          set +e
+          npx firebase-tools deploy --project eldalel-elshamel --only functions:assertMemberPhoneAvailable,functions:completeMemberRegistration,functions:indexMemberPhone,functions:preparePlayPurchase,functions:verifyPlayPurchase,functions:playBillingNotifications,functions:reconcilePlayPurchases --non-interactive 2>&1 | tee "$RUNNER_TEMP/scoped-functions.log"
+          deploy_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$deploy_status" -ne 0 ]; then
+            if ! grep -q "Functions successfully deployed but could not set up cleanup policy" "$RUNNER_TEMP/scoped-functions.log"; then
+              exit "$deploy_status"
+            fi
+            echo 'Functions deployed; artifact cleanup policy left unchanged.'
+          fi
+          node scripts/verify-release-functions.cjs
       - name: Prepare private phone reservations without modifying member profiles
         run: node scripts/backfill-member-phone-index.cjs --execute
       - name: Publish additive Firestore rules only

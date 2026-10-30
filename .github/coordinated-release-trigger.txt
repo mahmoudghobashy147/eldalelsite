@@ -1,3 +1,3 @@
-Authorized release: customer roles, unique phone registration, gated Play Billing
-Validated web/rules/native at 6a7d8f5088517009b26103a0cf0715ec31efee6b.
-2026-10-30
+Resume authorized release after verified successful function creation.
+Leave Artifact Registry cleanup policy unchanged; verify all seven functions ACTIVE.
+2026-10-30T17:11Z
