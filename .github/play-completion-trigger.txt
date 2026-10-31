@@ -1,0 +1,3 @@
+Publish verified privacy and support changes for Play v7 preparation.
+Only listSafetyModeration and indexMemberPhone plus website; no account deletion, rules changes or billing gate activation.
+2026-10-31
