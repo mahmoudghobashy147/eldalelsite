@@ -1,8 +1,8 @@
 'use strict';
 const {createHash}=require('node:crypto');
 const {identifier}=require('./core.cjs');
-const OWNED=new Set(['posts','catalogBusinesses','catalogProducts','catalogBusinessRequests','catalogCategories','serviceRequests','serviceRequestApplications','payments','playPurchases','notifications','safetyReports','memberInteractionRate','profileViewNotificationRate']);
-const OWNER_FIELDS=['uid','authorId','ownerId','userId','memberId','applicantId','reviewerId','reporterId','recipientId'];
+const OWNED=new Set(['posts','catalogBusinesses','catalogProducts','catalogBusinessRequests','catalogCategories','serviceRequests','serviceRequestApplications','jobs','jobApplications','payments','playPurchases','notifications','safetyReports','memberInteractionRate','profileViewNotificationRate']);
+const OWNER_FIELDS=['uid','postedBy','authorId','ownerId','userId','memberId','applicantId','reviewerId','reporterId','recipientId'];
 const ARRAYS=['likedBy','readBy','savedBy','followers','users'];
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const inside=(path,root)=>path===root||path.startsWith(root+'/');
@@ -38,6 +38,7 @@ function buildPlan({uid,records,files=[],now=Date.now()}){
     (OWNED.has(collection)&&(data.meta?.senderId===uid||data.meta?.memberId===uid))){deletes.push({path:r.path,version:r.version});continue;}
   const patch={};
   for(const field of ARRAYS)if(Array.isArray(data[field])&&data[field].includes(uid))patch[field]=data[field].filter(v=>v!==uid);
+  if(patch.likedBy&&Number.isFinite(data.likes))patch.likes=Math.max(0,data.likes-(data.likedBy.length-patch.likedBy.length));
   if(collection==='chats'&&patch.users){
    // Preserve the other participant's messages, remove the deleted sender's
    // messages separately, and erase cached identities and message previews.
@@ -51,6 +52,12 @@ function buildPlan({uid,records,files=[],now=Date.now()}){
   if(values.some(v=>v===uid||v===`members/${uid}`)||parts.some((part,i)=>i%2===1&&part===uid)||(!otherProfile&&personal.some(p=>values.some(v=>v.includes(p)))))review.push(r.path);
   if(Object.keys(patch).length)updates.push({path:r.path,version:r.version,patch});
  }
+ const deleted=new Set(deletes.map(r=>r.path));
+ const affectedReviews=new Set(),affectedComments=new Set();
+ for(const item of deletes){const p=item.path.split('/');if(p.length===4&&p[0]==='members'&&p[2]==='reviews'&&p[1]!==uid)affectedReviews.add(p[1]);if(p.length===4&&p[0]==='posts'&&p[2]==='comments'&&!deleted.has(`posts/${p[1]}`))affectedComments.add(p[1]);}
+ function mergeAggregate(record,patch){if(!record)return;const existing=updates.find(r=>r.path===record.path);if(existing)Object.assign(existing.patch,patch);else updates.push({path:record.path,version:record.version,patch});}
+ for(const memberId of affectedReviews){const prefix=`members/${memberId}/reviews/`;const ratings=records.filter(r=>r.path.startsWith(prefix)&&r.path.split('/').length===4&&!deleted.has(r.path)).map(r=>Number(r.data.rating)).filter(v=>Number.isFinite(v)&&v>=1&&v<=5);mergeAggregate(records.find(r=>r.path===`members/${memberId}`),{reviews:ratings.length,rating:ratings.length?Math.round(10*ratings.reduce((a,b)=>a+b,0)/ratings.length)/10:0});}
+ for(const postId of affectedComments){const prefix=`posts/${postId}/comments/`;const count=records.filter(r=>r.path.startsWith(prefix)&&r.path.split('/').length===4&&!deleted.has(r.path)).length;mergeAggregate(records.find(r=>r.path===`posts/${postId}`),{comments:count});}
  // Quota docs contain only a hash, but are still derived from this account.
  const quota=`safetyReportQuotas/${digest([uid])}`;
  for(const r of records)if(r.path===quota&&!deletes.some(d=>d.path===r.path))deletes.push({path:r.path,version:r.version});
