@@ -1,0 +1,26 @@
+name: Verify Play release completion
+on:
+  push:
+    branches: [feature/play-release-completion]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run build
+      - run: npm ci --prefix functions
+      - name: Test account deletion against isolated demo services
+        run: npx firebase-tools emulators:exec --project demo-daleel-deletion --config firebase.deletion-test.json --only firestore,auth,storage "node scripts/test-deletion-emulator.cjs"
+      - name: Test existing Firestore and Storage protections
+        run: npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore,storage "node scripts/test-firestore-rules.js && node scripts/test-storage-rules.js && node scripts/test-catalog-rules.js"
