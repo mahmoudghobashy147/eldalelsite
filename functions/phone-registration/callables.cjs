@@ -18,7 +18,8 @@ exports.indexMemberPhone=require('firebase-functions/v2/firestore').onDocumentCr
  const phone=policy.normalizePhone(member.phoneNormalized)||policy.normalizePhone(member.phone);if(!phone)return;
  const ref=db.collection('memberPhoneIndex').doc(policy.phoneKey(phone));
  await db.runTransaction(async tx=>{
-  const old=await tx.get(ref);
+  const [old,current]=await Promise.all([tx.get(ref),tx.get(db.collection('members').doc(event.params.uid))]);
+  if(!current.exists||policy.normalizePhone(current.data().phoneNormalized||current.data().phone)!==phone)return;
   if(old.exists){if(old.data().uid===event.params.uid||old.data().blocked===true)return;tx.set(ref,{uid:'',blocked:true,updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});return;}
   tx.create(ref,{uid:event.params.uid,createdAt:admin.firestore.FieldValue.serverTimestamp()});
  });

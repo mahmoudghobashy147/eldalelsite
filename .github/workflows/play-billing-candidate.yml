@@ -1,7 +1,7 @@
 name: Validate Play Billing candidate
 on:
   push:
-    branches: [feature/google-play-billing, release/customer-and-billing]
+    branches: [feature/google-play-billing, release/customer-and-billing, feature/play-release-completion]
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,8 +42,8 @@ jobs:
           s=re.sub(r'minSdkVersion\s*=\s*\d+','minSdkVersion = 24',s)
           p.write_text(s)
           p=Path('android/app/build.gradle');s=p.read_text()
-          s=re.sub(r'versionCode\s+\d+','versionCode 6',s)
-          s=re.sub(r'versionName\s+"[^"]+"','versionName "2.1.6"',s)
+          s=re.sub(r'versionCode\s+\d+','versionCode 7',s)
+          s=re.sub(r'versionName\s+"[^"]+"','versionName "2.1.7"',s)
           p.write_text(s)
           PY
       - name: Compile native billing bridge

@@ -18,5 +18,11 @@ fs.writeFileSync(gradle,s);
 const variables='android/variables.gradle';
 s=fs.readFileSync(variables,'utf8').replace(/(compileSdkVersion|targetSdkVersion)\s*=\s*(\d+)/g,(_,key,n)=>`${key} = ${Math.max(36,Number(n))}`).replace(/minSdkVersion\s*=\s*(\d+)/,(_,n)=>`minSdkVersion = ${Math.max(24,Number(n))}`);
 fs.writeFileSync(variables,s);
-s=fs.readFileSync(gradle,'utf8').replace(/versionCode\s+(\d+)/,(_,n)=>`versionCode ${Math.max(6,Number(n))}`).replace(/versionName\s+"1\.0"/,'versionName "2.1.6"');
+s=fs.readFileSync(gradle,'utf8').replace(/versionCode\s+(\d+)/,(_,n)=>`versionCode ${Math.max(7,Number(n))}`).replace(/versionName\s+"1\.0"/,'versionName "2.1.7"');
 fs.writeFileSync(gradle,s);
+
+// Optional foreground location: no precise/background location or required GPS hardware.
+const manifestPath='android/app/src/main/AndroidManifest.xml';
+let manifest=fs.readFileSync(manifestPath,'utf8');
+if(!manifest.includes('android.permission.ACCESS_COARSE_LOCATION'))manifest=manifest.replace('</manifest>','<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n<uses-feature android:name="android.hardware.location" android:required="false" />\n</manifest>');
+fs.writeFileSync(manifestPath,manifest);
