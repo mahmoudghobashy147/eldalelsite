@@ -1,0 +1,77 @@
+name: Verify and publish limited pending phone access
+on:
+  push:
+    branches: [main, feature/pending-phone-viewer]
+    paths: [.github/pending-viewer-trigger.txt]
+permissions:
+  contents: write
+concurrency:
+  group: eldalel-pending-viewer
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run build
+      - run: npm ci --prefix functions
+      - name: Configure release credentials
+        shell: bash
+        run: |
+          umask 077
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/customer-firebase.json"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT_BASE64" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_BASE64" | base64 --decode > "$RUNNER_TEMP/customer-firebase.json"
+          else
+            echo '::error::Firebase deployment credential unavailable'
+            exit 1
+          fi
+          node -e 'const f=require(process.argv[1]);if(f.project_id!=="eldalel-elshamel"||!f.private_key||!f.client_email)process.exit(1)' "$RUNNER_TEMP/customer-firebase.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/customer-firebase.json" >> "$GITHUB_ENV"
+      - name: Verify exact registered account without modifying it
+        run: node scripts/bind-pending-phone-viewer.cjs
+      - name: Deploy limited read-only functions only
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set +e
+          npx firebase-tools deploy --project eldalel-elshamel --only functions:getPendingPhoneAccess,functions:listPendingPhones --non-interactive 2>&1 | tee "$RUNNER_TEMP/play-support-functions.log"
+          deploy_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$deploy_status" -ne 0 ]; then
+            if ! grep -q "Functions successfully deployed but could not set up cleanup policy" "$RUNNER_TEMP/play-support-functions.log"; then
+              exit "$deploy_status"
+            fi
+            echo 'Functions deployed; artifact cleanup left unchanged.'
+          fi
+          node scripts/verify-pending-phone-functions.cjs
+      - name: Bind the verified account to read-only capability
+        if: github.ref == 'refs/heads/main'
+        run: node scripts/bind-pending-phone-viewer.cjs --execute
+      - name: Publish verified website
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test -f build/CNAME
+          grep -qx "eldalel-elshamel.online" build/CNAME
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          npx gh-pages -d build -m "Deploy limited pending phone access ${GITHUB_SHA}"
+      - name: Remove credential copy
+        if: always()
+        run: rm -f "$RUNNER_TEMP/customer-firebase.json"

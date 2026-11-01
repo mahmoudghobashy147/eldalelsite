@@ -24,7 +24,7 @@ function ownsFile(name,uid,otherIds=[]){
 function buildPlan({uid,records,files=[],now=Date.now()}){
  identifier(uid);const member=records.find(r=>r.path===`members/${uid}`);
  if(member?.data?.isAdmin===true)throw Error('Admin accounts require a separate transfer and review');
- const roots=new Set([`members/${uid}`,`catalogBusinessRequests/${uid}`]);
+ const roots=new Set([`members/${uid}`,`catalogBusinessRequests/${uid}`,`staffPermissions/${uid}`]);
  for(const r of records){const [collection,,...rest]=r.path.split('/');if(!rest.length&&OWNED.has(collection)&&OWNER_FIELDS.some(k=>r.data[k]===uid))roots.add(r.path);}
  const personal=[member?.data?.phone,member?.data?.phoneNormalized,member?.data?.email].filter(v=>typeof v==='string'&&v.length>=7);
  const deletes=[],updates=[],review=[];
