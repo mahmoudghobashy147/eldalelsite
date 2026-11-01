@@ -1,7 +1,7 @@
 name: Verify and publish limited pending phone access
 on:
   push:
-    branches: [main, feature/pending-phone-viewer]
+    branches: [main, feature/pending-members-page]
     paths: [.github/pending-viewer-trigger.txt]
 permissions:
   contents: write
@@ -26,8 +26,11 @@ jobs:
           java-version: '21'
       - run: npm ci
       - run: npm run build
+      - name: Test restricted member page
+        run: CI=true npm test -- --watchAll=false --runInBand --runTestsByPath src/PendingPhoneViewer.test.jsx
       - run: npm ci --prefix functions
       - name: Configure release credentials
+        if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           umask 077
@@ -41,14 +44,12 @@ jobs:
           fi
           node -e 'const f=require(process.argv[1]);if(f.project_id!=="eldalel-elshamel"||!f.private_key||!f.client_email)process.exit(1)' "$RUNNER_TEMP/customer-firebase.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/customer-firebase.json" >> "$GITHUB_ENV"
-      - name: Verify exact registered account without modifying it
-        run: node scripts/bind-pending-phone-viewer.cjs
       - name: Deploy limited read-only functions only
         if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set +e
-          npx firebase-tools deploy --project eldalel-elshamel --only functions:getPendingPhoneAccess,functions:listPendingPhones --non-interactive 2>&1 | tee "$RUNNER_TEMP/play-support-functions.log"
+          npx firebase-tools deploy --project eldalel-elshamel --only functions:listPendingMembers --non-interactive 2>&1 | tee "$RUNNER_TEMP/play-support-functions.log"
           deploy_status=${PIPESTATUS[0]}
           set -e
           if [ "$deploy_status" -ne 0 ]; then
@@ -58,9 +59,6 @@ jobs:
             echo 'Functions deployed; artifact cleanup left unchanged.'
           fi
           node scripts/verify-pending-phone-functions.cjs
-      - name: Bind the verified account to read-only capability
-        if: github.ref == 'refs/heads/main'
-        run: node scripts/bind-pending-phone-viewer.cjs --execute
       - name: Publish verified website
         if: github.ref == 'refs/heads/main'
         env:
