@@ -4,6 +4,7 @@
 module.exports = {
   ...require("./index"),
   ...require("./play-billing/index.cjs"),
+  ...require("./pending-phones/index.cjs"),
   ...require("./phone-registration/callables.cjs"),
   ...require("./notification-triggers"),
   ...require("./engagement-triggers"),
