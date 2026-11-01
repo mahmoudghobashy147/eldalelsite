@@ -18,4 +18,5 @@ function unseal(token,key,uid,now=Date.now()){
  if(typeof data.lastId!=='string'||!data.lastId||data.lastId.includes('/')||data.lastId.length>1500||!Number.isFinite(data.expires)||data.expires<=now)throw Error('cursor');
  return data.lastId;
 }
-module.exports={pending,phoneOnly,permitted,seal,unseal};
+function memberSummary(m){const phone=phoneOnly(m);if(!phone)return null;const text=v=>typeof v==='string'?v.trim().slice(0,120):'';return {phone,name:text(m.name),profession:text(m.specialty)};}
+module.exports={pending,phoneOnly,memberSummary,permitted,seal,unseal};

@@ -1,0 +1,23 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {act} from 'react-dom/test-utils';
+import {getAuth} from 'firebase/auth';
+import {httpsCallable} from 'firebase/functions';
+import PendingPhoneViewer,{usePendingPhoneAccess} from './PendingPhoneViewer';
+jest.mock('firebase/auth',()=>({getAuth:jest.fn()}));
+jest.mock('firebase/functions',()=>({getFunctions:jest.fn(),httpsCallable:jest.fn()}));
+let host,root,current;
+beforeEach(()=>{global.IS_REACT_ACT_ENVIRONMENT=true;current={uid:'staff'};getAuth.mockImplementation(()=>({currentUser:current}));host=document.createElement('div');document.body.appendChild(host);root=createRoot(host);});
+afterEach(()=>{act(()=>root.unmount());host.remove();jest.clearAllMocks();});
+const render=async element=>{await act(async()=>{root.render(element);});};
+test('renders a separate read-only page with safe name, profession and callable phone links',async()=>{
+ httpsCallable.mockImplementation(()=>async()=>({data:{members:[{name:'محمد أحمد',profession:'سباكة',phone:'01000000001'},{name:'',profession:'',phone:'01000000002'}],nextCursor:null}}));
+ const back=jest.fn();await render(<PendingPhoneViewer uid="staff" onBack={back}/>);
+ expect(host.querySelector('h1').textContent).toBe('المشتركون غير المفعّلين');
+ expect(host.querySelectorAll('article').length).toBe(2);expect(host.textContent).toContain('محمد أحمد');expect(host.textContent).toContain('سباكة');expect(host.textContent).toContain('لم تُستكمل المهنة');expect(host.querySelector('a').getAttribute('href')).toMatch(/^tel:01/);
+ expect([...host.querySelectorAll('button')].some(b=>b.textContent==='تفعيل')).toBe(false);
+ act(()=>host.querySelector('.pending-back').click());expect(back).toHaveBeenCalledTimes(1);
+});
+test('a denied page discloses no rows and disables further reads',async()=>{httpsCallable.mockImplementation(()=>async()=>{throw Object.assign(Error(),{code:'functions/permission-denied'});});await render(<PendingPhoneViewer uid="staff" onBack={()=>{}}/>);expect(host.querySelectorAll('article').length).toBe(0);expect(host.querySelector('[role="alert"]').textContent).toContain('لا توجد صلاحية');expect(host.querySelector('.pending-members-toolbar button').disabled).toBe(true);});
+test('late responses for the previous signed-in account never appear on the new account',async()=>{let resolve;httpsCallable.mockImplementation(()=>()=>new Promise(r=>{resolve=r;}));await render(<PendingPhoneViewer uid="staff" onBack={()=>{}}/>);const old=resolve;current={uid:'other'};await render(<PendingPhoneViewer uid="other" onBack={()=>{}}/>);await act(async()=>{old({data:{members:[{name:'Private previous account',phone:'01000000001',profession:'نجارة'}],nextCursor:null}});});expect(host.textContent).not.toContain('Private previous account');expect(host.querySelectorAll('article').length).toBe(0);});
+test('navigation permission comes from the server and resets when the user changes',async()=>{httpsCallable.mockImplementation(()=>async()=>({data:{allowed:true}}));function Probe({uid}){return <span>{usePendingPhoneAccess(uid)?'allowed':'hidden'}</span>;}await render(<Probe uid="staff"/>);expect(host.textContent).toBe('allowed');current=null;await render(<Probe uid={null}/>);expect(host.textContent).toBe('hidden');});

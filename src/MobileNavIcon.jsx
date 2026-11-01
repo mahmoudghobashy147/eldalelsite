@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 import './mobile-nav-modern.css';
 
 const drawings = {
+  pendingMembers: <><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h5M8 16h3"/><circle cx="17" cy="17" r="4"/><path d="M17 15v2l1 1"/></>,
   home: <><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5M9.5 21v-6h5v6"/></>,
   search: <><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></>,
   saved: <path d="M20.8 5.9a5.2 5.2 0 0 0-7.4 0L12 7.3l-1.4-1.4a5.2 5.2 0 0 0-7.4 7.4L12 22l8.8-8.7a5.2 5.2 0 0 0 0-7.4Z"/>,
