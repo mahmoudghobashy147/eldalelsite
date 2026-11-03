@@ -17,8 +17,11 @@ async function main(){
  const target=roles.docs.find(d=>d.data().active===true);if(!target)throw Error('No enabled pending viewer available for verification');
  const {listPendingMembers}=require('../functions/pending-phones/index.cjs');
  const result=await listPendingMembers.run({auth:{uid:target.id},data:{}});
- if(!Array.isArray(result.members)||result.members.length>30||Object.keys(result).some(k=>!['members','nextCursor'].includes(k)))throw Error('Unexpected detail projection');
- for(const m of result.members)if(Object.keys(m).sort().join(',')!=='name,phone,profession'||typeof m.name!=='string'||typeof m.profession!=='string'||!/^01[0125][0-9]{8}$/.test(m.phone))throw Error('Unexpected member detail fields');
- console.log('Authorized name/profession/phone projection verified; values omitted. No roles or profiles changed.');
+ if(!Array.isArray(result.members)||result.members.length>30||Object.keys(result).some(k=>!['members','nextCursor','serverNowMs'].includes(k)))throw Error('Unexpected detail projection');
+ for(const m of result.members)if(Object.keys(m).sort().join(',')!=='name,phone,profession,registeredAtMs,registrationOrdinal'||typeof m.name!=='string'||typeof m.profession!=='string'||!/^01[0125][0-9]{8}$/.test(m.phone))throw Error('Unexpected member detail fields');
+ for(let i=1;i<result.members.length;i++)if(result.members[i].registrationOrdinal<=result.members[i-1].registrationOrdinal)throw Error('Registration order incorrect');
+ const recent=await listPendingMembers.run({auth:{uid:target.id},data:{recent:true}});
+ const registration=require('../functions/pending-phones/registration.cjs');if(recent.members.some(m=>!registration.registrationInfo(m,recent.serverNowMs).isNew))throw Error('Recent filter includes old or unknown registration');
+ console.log('Verified oldest-first registration numbers, dates and recent filter; private values omitted. No roles or profiles changed.');
 }
 main().catch(()=>{console.error('Restricted member release verification failed; no private values logged.');process.exitCode=1;});
