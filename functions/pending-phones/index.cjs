@@ -2,6 +2,7 @@
 const {onCall,HttpsError}=require('firebase-functions/v2/https');
 const admin=require('firebase-admin');const policy=require('./policy.cjs');
 const db=admin.firestore();
+const registration=require('./registration.cjs');
 async function access(request){
  if(!request.auth?.uid)throw new HttpsError('unauthenticated','سجّل الدخول أولًا');
  const uid=request.auth.uid;
@@ -35,4 +36,21 @@ async function listPending(request,details=false){
 const options={region:'us-central1',invoker:'public',maxInstances:5,concurrency:20};
 // Retain the published phone-only endpoint for old website sessions.
 exports.listPendingPhones=onCall(options,request=>listPending(request,false));
-exports.listPendingMembers=onCall(options,request=>listPending(request,true));
+exports.listPendingMembers=onCall(options,async request=>{
+ const {uid,role}=await access(request),now=Date.now(),recent=request.data?.recent===true;
+ const prefix=`registration-v1:${recent?'recent':'all'}:`;let after='';
+ if(request.data?.cursor){try{const value=policy.unseal(request.data.cursor,role.cursorKey,uid);if(!value.startsWith(prefix))throw Error('cursor');after=value.slice(prefix.length);}catch{throw new HttpsError('invalid-argument','انتهت صلاحية القائمة. اضغط تحديث القائمة');}}
+ // Registration rank is computed before status/search filters so searching never renumbers accounts.
+ // Missing dates stay visible at the end; no profile/date/counter is written to Firestore.
+ const snapshot=await db.collection('members').orderBy(admin.firestore.FieldPath.documentId()).select('phone','phoneNormalized','status','accountKind','type','plan','isAdmin','name','specialty','createdAt','registeredAt','joinDate','joinedAt').limit(10001).get();
+ if(snapshot.size>10000)throw new HttpsError('resource-exhausted','القائمة كبيرة وتحتاج تقسيمًا إضافيًا. تواصل مع الإدارة');
+ const ranked=registration.indexRegistrations(snapshot.docs.map(doc=>({...doc.data(),id:doc.id})),now);
+ const offset=after?ranked.findIndex(m=>m.id===after)+1:0;
+ if(after&&!offset)throw new HttpsError('invalid-argument','تغيرت القائمة. اضغط تحديث القائمة');
+ const eligible=ranked.slice(offset).filter(m=>policy.phoneOnly(m)&&(!recent||registration.registrationInfo(m,now).isNew));
+ const page=eligible.slice(0,30);
+ const members=page.map(m=>({...policy.memberSummary(m),registrationOrdinal:m.registrationOrdinal,registeredAtMs:m.registeredAtMs}));
+ const current=await db.doc(`staffPermissions/${uid}`).get();
+ if(!policy.permitted(current.data())||current.data().cursorKey!==role.cursorKey)throw new HttpsError('permission-denied','انتهت صلاحية العرض');
+ return {members,nextCursor:eligible.length>30?policy.seal(prefix+page.at(-1).id,role.cursorKey,uid):null,serverNowMs:now};
+});

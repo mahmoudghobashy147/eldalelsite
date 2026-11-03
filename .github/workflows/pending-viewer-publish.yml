@@ -1,7 +1,7 @@
 name: Verify and publish limited pending phone access
 on:
   push:
-    branches: [main, feature/pending-members-page]
+    branches: [main, feature/registration-timeline]
     paths: [.github/pending-viewer-trigger.txt]
 permissions:
   contents: write
