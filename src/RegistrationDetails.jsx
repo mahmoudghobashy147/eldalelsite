@@ -1,5 +1,5 @@
 import React from 'react';
-import registrationPolicy from './registration-policy.cjs';
+import registrationPolicy from './registration-policy.js';
 import './registration-details.css';
 export default function RegistrationDetails({member,now=Date.now()}){
  const info=registrationPolicy.registrationInfo(member,now);

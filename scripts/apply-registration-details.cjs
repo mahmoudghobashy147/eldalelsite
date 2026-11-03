@@ -1,6 +1,6 @@
 'use strict';
-const fs=require('node:fs');fs.copyFileSync('functions/pending-phones/registration.cjs','src/registration-policy.cjs');
-const path='src/App.jsx';let s=fs.readFileSync(path,'utf8');
+const fs=require('node:fs');fs.copyFileSync('functions/pending-phones/registration.cjs','src/registration-policy.js');
+const path='src/App.jsx';let s=fs.readFileSync(path,'utf8').replaceAll('./registration-policy.cjs','./registration-policy.js');
 if(!s.includes('// registration-details-v1')){
  function once(a,b){if(s.split(a).length!==2)throw Error('Registration details anchor: '+a.slice(0,85));s=s.replace(a,b);}
  const start=s.indexOf('  const pendingList = useMemo('),end=s.indexOf('  const filteredPending = useMemo',start);
@@ -25,6 +25,6 @@ if(!s.includes('// registration-details-v1')){
  cards=cards.slice(0,firstInnerEnd+1)+'\n                <RegistrationDetails member={m} now={registrationNow}/>'+cards.slice(firstInnerEnd+1);
  s=s.slice(0,from)+cards+s.slice(to);
  s=s.replace('pendingSearch?"لا توجد نتائج مطابقة":"لا توجد طلبات معلقة"','pendingSearch?"لا توجد نتائج مطابقة":showRecentRegistrations?"لا يوجد مسجّلون جدد خلال آخر ٣ أيام":"لا توجد طلبات معلقة"').replace('pendingSearch?"جرّب كلمة بحث مختلفة":"جميع الطلبات تمت مراجعتها"','pendingSearch?"جرّب كلمة بحث مختلفة":showRecentRegistrations?"اضغط عرض جميع المسجّلين للعودة للقائمة الكاملة":"جميع الطلبات تمت مراجعتها"');
- s='// registration-details-v1\nimport registrationPolicy from "./registration-policy.cjs";\nimport RegistrationDetails,{RecentRegistrationFilter} from "./RegistrationDetails";\n'+s;
- fs.writeFileSync(path,s);
+ s='// registration-details-v1\nimport registrationPolicy from "./registration-policy.js";\nimport RegistrationDetails,{RecentRegistrationFilter} from "./RegistrationDetails";\n'+s;
 }
+fs.writeFileSync(path,s);
