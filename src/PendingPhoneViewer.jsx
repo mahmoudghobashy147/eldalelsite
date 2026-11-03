@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {getFunctions,httpsCallable} from 'firebase/functions';
 import {getAuth} from 'firebase/auth';
 import './pending-phones.css';
-import registrationPolicy from './registration-policy.cjs';
+import registrationPolicy from './registration-policy.js';
 import RegistrationDetails,{RecentRegistrationFilter} from './RegistrationDetails';
 const call=async(name,data={})=>(await httpsCallable(getFunctions(),name)(data)).data;
 export function usePendingPhoneAccess(uid){

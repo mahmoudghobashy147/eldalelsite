@@ -1,0 +1,34 @@
+name: Publish admin registration rendering hotfix
+on:
+  push:
+    branches: [main, feature/admin-registration-hotfix]
+    paths: [.github/admin-registration-hotfix-trigger.txt]
+permissions:
+  contents: write
+concurrency:
+  group: eldalel-admin-render-hotfix
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Render the actual staged admin dashboard and member lists
+        run: CI=true npm test -- --watchAll=false --runInBand --runTestsByPath src/AdminRegistrationRuntime.test.jsx src/PendingPhoneViewer.test.jsx
+      - name: Publish verified website only
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test -f build/CNAME
+          grep -qx "eldalel-elshamel.online" build/CNAME
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          npx gh-pages -d build -m "Fix admin registration helper rendering ${GITHUB_SHA}"
