@@ -1,5 +1,6 @@
 'use strict';
 const DAY=86400000,NEW_WINDOW=3*DAY;
+const dateFormatter=new Intl.DateTimeFormat('ar-EG',{timeZone:'Africa/Cairo',day:'numeric',month:'long',year:'numeric'});
 function dateMillis(value){
  try{
   if(value==null||value==='')return null;
@@ -22,13 +23,14 @@ function registrationInfo(m,now=Date.now()){
  const at=registrationMillis(m,now);if(at===null)return {at:null,days:null,isNew:false,dateLabel:'تاريخ التسجيل غير متاح',durationLabel:'مدة التسجيل غير متاحة'};
  const elapsed=now-at,days=Math.floor(elapsed/DAY);
  const durationLabel=days===0?'مسجّل اليوم':days===1?'مسجّل من يوم':days===2?'مسجّل من يومين':`مسجّل من ${days} أيام`;
- return {at,days,isNew:elapsed<NEW_WINDOW,dateLabel:new Intl.DateTimeFormat('ar-EG',{timeZone:'Africa/Cairo',day:'numeric',month:'long',year:'numeric'}).format(at),durationLabel:days>10?`مسجّل من ${days} يومًا`:durationLabel};
+ return {at,days,isNew:elapsed<NEW_WINDOW,dateLabel:dateFormatter.format(at),durationLabel:days>10?`مسجّل من ${days} يومًا`:durationLabel};
 }
+function isRecentRegistration(m,now=Date.now()){const at=registrationMillis(m,now);return at!==null&&now-at<NEW_WINDOW;}
 function indexRegistrations(members,now=Date.now()){
  return members.map(m=>({...m,registeredAtMs:registrationMillis(m,now)})).sort((a,b)=>{
   const av=a.registeredAtMs,bv=b.registeredAtMs;
   if(av===null&&bv!==null)return 1;if(bv===null&&av!==null)return -1;
-  return (av===null?0:av-bv)||String(a.id||a.uid||'').localeCompare(String(b.id||b.uid||''),'en');
+  return (av===null?0:av-bv)||(String(a.id||a.uid||'')<String(b.id||b.uid||'')?-1:String(a.id||a.uid||'')>String(b.id||b.uid||'')?1:0);
  }).map((m,i)=>({...m,registrationOrdinal:i+1}));
 }
-module.exports={DAY,NEW_WINDOW,dateMillis,registrationMillis,registrationInfo,indexRegistrations};
+module.exports={DAY,NEW_WINDOW,dateMillis,registrationMillis,registrationInfo,isRecentRegistration,indexRegistrations};

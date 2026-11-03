@@ -47,7 +47,7 @@ exports.listPendingMembers=onCall(options,async request=>{
  const ranked=registration.indexRegistrations(snapshot.docs.map(doc=>({...doc.data(),id:doc.id})),now);
  const offset=after?ranked.findIndex(m=>m.id===after)+1:0;
  if(after&&!offset)throw new HttpsError('invalid-argument','تغيرت القائمة. اضغط تحديث القائمة');
- const eligible=ranked.slice(offset).filter(m=>policy.phoneOnly(m)&&(!recent||registration.registrationInfo(m,now).isNew));
+ const eligible=ranked.slice(offset).filter(m=>policy.phoneOnly(m)&&(!recent||registration.isRecentRegistration(m,now)));
  const page=eligible.slice(0,30);
  const members=page.map(m=>({...policy.memberSummary(m),registrationOrdinal:m.registrationOrdinal,registeredAtMs:m.registeredAtMs}));
  const current=await db.doc(`staffPermissions/${uid}`).get();
