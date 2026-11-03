@@ -8,9 +8,9 @@ function professionalSnapshot(m){const fields=['plan','type','status','subscript
 function conversion(member,state,kind,now=Date.now()){
  if(!['customer','craftsman'].includes(kind))fail('invalid-argument','نوع الحساب غير صحيح');
  if(member.isAdmin===true)fail('failed-precondition','حساب الإدارة لا يتحول إلى عميل أو مشترك');
- const oldKind=customer(member)?'customer':'craftsman';if(oldKind===kind)return {changed:false,memberPatch:{accountKind:kind},restoreNeeded:false};
+ const oldKind=customer(member)?'customer':'craftsman';if(oldKind===kind)return {changed:false,memberPatch:{accountKind:kind,type:member.type||(kind==='customer'?'customer':'starter'),plan:member.plan||member.type||(kind==='customer'?'customer':'starter'),status:member.status||'pending'},restoreNeeded:false};
  if(kind==='customer')return {changed:true,professional:professionalSnapshot(member),memberPatch:{accountKind:'customer',type:'customer',plan:'customer',status:'pending'},restoreNeeded:false};
- const previous=state?.professional||{},plan=plans.has(previous.plan)?previous.plan:'starter',type=types.has(previous.type)?previous.type:plan,end=millis(previous.subscriptionEnd),activeManual=previous.status==='approved'&&end!==null&&end>now&&previous.billingProvider!=='google_play';
+ const previous=state?.professional||{},plan=plans.has(previous.plan||previous.type)?(previous.plan||previous.type):'starter',type=types.has(previous.type)?previous.type:plan,end=millis(previous.subscriptionEnd),activeManual=previous.status==='approved'&&end!==null&&end>now&&previous.billingProvider!=='google_play';
  const memberPatch={accountKind:'craftsman',type,plan,status:activeManual?'approved':'pending'};
  // Existing payment/token fields and uploaded content are never erased. Only an
  // unexpired prior manual term is restored; Google purchases require real verification.
