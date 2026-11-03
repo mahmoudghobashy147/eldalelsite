@@ -7,6 +7,7 @@ import {transformSync} from '@babel/core';
 import registrationPolicy from './registration-policy.js';
 import RegistrationDetails,{RecentRegistrationFilter} from './RegistrationDetails';
 import role from './account-role';
+import AdminAccountKindControl from './AdminAccountKindControl';
 const source=fs.readFileSync(path.join(process.cwd(),'src/App.jsx'),'utf8');
 const ast=parse(source,{sourceType:'module',plugins:['jsx']});
 const declaration=ast.program.body.find(n=>n.type==='VariableDeclaration'&&n.declarations.some(d=>d.id.name==='AdminScreen'));
@@ -15,7 +16,7 @@ const actual=source.slice(declaration.start,declaration.end);
 function component(policy=registrationPolicy,section='dashboard',members=[]){
  const code=transformSync(actual.replace('useState("dashboard")','useState(initialSection)').replace('const [members, setMembers] = useState([]);','const [members, setMembers] = useState(fixtureMembers);'),{presets:[require.resolve('@babel/preset-react')],babelrc:false,configFile:false}).code;
  const cfg={adminPhone:'01000000000',planPrices:{starter:100,basic:200,vip:600}};
- const context={React,...React,useConfig:()=>cfg,C:new Proxy({},{get:()=> '#173e2d'}),registrationPolicy:policy,RegistrationDetails,RecentRegistrationFilter,...role,SafetyModeration:()=>null,initialSection:section,fixtureMembers:members,Av:({text})=><span>{text}</span>,getMemberPlan:m=>m.plan||m.type||'starter',getPlanPrice:()=>200,PLANS:{starter:{label:'مبتدئ'},basic:{label:'أساسي'},vip:{label:'VIP'}},GOVS:['القاهرة'],GOVERNORATES:['القاهرة']};
+ const context={React,...React,useConfig:()=>cfg,C:new Proxy({},{get:()=> '#173e2d'}),registrationPolicy:policy,AdminAccountKindControl,RegistrationDetails,RecentRegistrationFilter,...role,SafetyModeration:()=>null,initialSection:section,fixtureMembers:members,Av:({text})=><span>{text}</span>,getMemberPlan:m=>m.plan||m.type||'starter',getPlanPrice:()=>200,PLANS:{starter:{label:'مبتدئ'},basic:{label:'أساسي'},vip:{label:'VIP'}},GOVS:['القاهرة'],GOVERNORATES:['القاهرة']};
  return new Function('context',`with(context){${code};return AdminScreen;}`)(context);
 }
 function render(policy,section,members,darkMode=true){const Admin=component(policy,section,members);return renderToStaticMarkup(<Admin darkMode={darkMode} currentUser={{uid:'test-admin',isAdmin:true}}/>);}
