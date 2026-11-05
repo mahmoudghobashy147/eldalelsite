@@ -7,7 +7,7 @@ const productId=plan=>`eldalel_${plan}_annual`;
 const priceCache=new Map();
 async function priceFor(plan){const id=productId(plan);if(!priceCache.has(id))priceCache.set(id,Billing.product({productId:id}).catch(error=>{priceCache.delete(id);throw error}));return priceCache.get(id)}
 export function PlayPrice({plan}){const [price,setPrice]=useState('السعر في Google Play');useEffect(()=>{let live=true;priceFor(plan).then(r=>{if(live)setPrice(r.price+' / سنة')}).catch(()=>{if(live)setPrice('غير متاح حاليًا')});return()=>{live=false}},[plan]);return <span>{price}</span>}
-export function PlayCheckout({plan,uid,invoke,onSuccess}){
+export function PlayCheckout({plan,uid,invoke,onSuccess,supportPhone}){
   const [price,setPrice]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   useEffect(()=>{let live=true;setPrice('');setMessage('');priceFor(plan).then(r=>{if(live)setPrice(r.price)}).catch(()=>{if(live)setMessage('الباقة غير متاحة للشراء حاليًا. حاول لاحقًا.')});return()=>{live=false}},[plan]);
   async function verify(result){
@@ -23,6 +23,10 @@ export function PlayCheckout({plan,uid,invoke,onSuccess}){
   }
   async function restore(){if(!uid||busy)return;setBusy(true);setMessage('');try{if(!await verify(await Billing.restore()))setMessage('لا توجد مشتريات مكتملة متاحة للاستعادة لهذا الحساب.');}catch{setMessage('تعذر تأكيد المشتريات. تأكد من الحساب والاتصال وحاول مجددًا.');}finally{setBusy(false)}}
   async function buy(){if(!uid||busy)return;setBusy(true);setMessage('');try{const prepared=await invoke('preparePlayPurchase',{productId:productId(plan)});await verify(await Billing.buy(prepared));}catch(e){setMessage(e.code==='CANCELED'?'تم إلغاء الشراء.':e.message||'تعذر الشراء. حاول مجددًا.');}finally{setBusy(false)}}
+  const phone = String(supportPhone ?? '').replace(/[+ ()-]/g, '').replace(/^00/, '').replace(/^01/, '201');
+  const supportUrl = /^[1-9][0-9]{7,14}$/.test(phone)
+    ? `https://wa.me/${phone}?text=${encodeURIComponent('مرحبًا، عندي مشكلة في الدفع أو التفعيل عبر Google Play في الدليل الشامل ومحتاج مساعدة.')}`
+    : null;
   return <section dir="rtl" style={{padding:16,borderRadius:16,background:'#f4f4eb',color:'#163e30'}}>
     <h3>الدفع عبر Google Play</h3>
     <p>اشتراك لمدة سنة، بدون تجديد تلقائي.</p>
@@ -30,6 +34,7 @@ export function PlayCheckout({plan,uid,invoke,onSuccess}){
     {!uid&&<p>سجّل دخولك بحساب مشترك لإتمام الشراء.</p>}
     <button className="btn btn-primary" disabled={busy||!price||!uid} onClick={buy}>{busy?'جارٍ المعالجة…':`اشترك لمدة سنة ${price}`}</button>
     <button className="btn btn-outline" disabled={busy||!uid} onClick={restore}>استعادة المشتريات</button>
+    {supportUrl && <a className="btn btn-outline" href={supportUrl} target="_blank" rel="noopener noreferrer">مشكلة في الدفع؟ تواصل مع الدعم</a>}
     <p role="status" aria-live="polite">{message}</p>
     <p style={{fontSize:12}}>السعر النهائي وشروط الدفع تظهر في شاشة Google Play. التفعيل بعد تأكيد عملية الشراء.</p>
   </section>;
