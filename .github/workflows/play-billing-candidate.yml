@@ -48,7 +48,11 @@ jobs:
           PY
       - name: Compile native billing bridge
         working-directory: android
-        run: chmod +x gradlew && ./gradlew bundleRelease assembleDebug
+        run: |
+          sed -i '/^networkTimeout=/d' gradle/wrapper/gradle-wrapper.properties
+          printf '\nnetworkTimeout=120000\n' >> gradle/wrapper/gradle-wrapper.properties
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: play-billing-candidate-unsigned-not-for-upload
