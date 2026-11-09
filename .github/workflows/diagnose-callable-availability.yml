@@ -26,3 +26,13 @@ jobs:
               echo
             done
           done
+
+      - name: Check valid-format samples without creating accounts
+        shell: bash
+        run: |
+          endpoint="https://us-central1-eldalel-elshamel.cloudfunctions.net/assertMemberPhoneAvailable"
+          for sample in 01000000000 01100000000 01200000000; do
+            curl -sS --max-time 20 -w ' HTTP %{http_code} time %{time_total}s\n' \
+              -H 'Origin: https://eldalel-elshamel.online' -H 'Content-Type: application/json' \
+              --data "{\"data\":{\"phone\":\"$sample\"}}" "$endpoint"
+          done
