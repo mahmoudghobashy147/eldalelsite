@@ -12,7 +12,7 @@ jobs:
       - name: Probe invalid requests only
         shell: bash
         run: |
-          for function in createServiceRequest sendSafetyMessage; do
+          for function in assertMemberPhoneAvailable completeMemberRegistration secureMemberLogin; do
             url="https://us-central1-eldalel-elshamel.cloudfunctions.net/$function"
             for origin in "https://eldalel-elshamel.online" "https://localhost"; do
               echo "ENDPOINT=$function ORIGIN=$origin"
