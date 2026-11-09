@@ -5324,18 +5324,12 @@ const AdminScreen = ({ darkMode, currentUser }) => {
   };
   const rejectMember = async (id) => {
     try {
-      await updateDoc(doc(db,"members",id), { status:"rejected", rejectedAt: new Date() });
-      // إشعار للعضو المرفوض عشان يعرف ويقدر يتواصل مع الإدارة يستفسر
-      await addDoc(collection(db,"notifications"), {
-        recipientId: id,
-        body: "نأسف، لم يتم قبول طلبك في الدليل الشامل حاليًا. تواصل مع الإدارة لمعرفة التفاصيل.",
-        title: "بخصوص طلب التسجيل",
-        icon: "❌", color: "#EF4444",
-        time: new Date(), read: false,
-      }).catch(()=>{});
-    } catch(e) { console.error(e); }
-    setMembers(p => p.map(m => m.id===id ? {...m, status:"rejected"} : m));
-    setConfirmModal(null);
+      await httpsCallable(functions, "adminRejectMemberRegistration")({ memberId: id });
+      setMembers(current => current.filter(member => member.id !== id));
+      setConfirmModal(null);
+    } catch (error) {
+      alert(error.message || "تعذر إكمال الرفض. حاول مرة تانية.");
+    }
   };
   // تجديد اشتراك عضو مفعّل بالفعل: بيمدد تاريخ الانتهاء 30 يوم من تاريخ اليوم (أو من تاريخ الانتهاء الحالي لو لسه ماخلصش)، ويسجل الدفعة تلقائي في المدفوعات
   const renewMemberSubscription = async (id, days) => {
@@ -5767,7 +5761,7 @@ const AdminScreen = ({ darkMode, currentUser }) => {
                     const v = e.target.value;
                     // بنمرّ دايمًا على approveMember/rejectMember (مش تحديث خام) عشان يتحسب الاشتراك والدفعة والإشعار تلقائيًا مهما كان مصدر التغيير
                     if (v === "approved") { await approveMember(m.id); return; }
-                    if (v === "rejected") { await rejectMember(m.id); return; }
+                    if (v === "rejected") { setConfirmModal({ type:"reject", id:m.id, name:m.name }); return; }
                     try{ await updateDoc(doc(db,"members",m.id),{status:v}); setMembers(p=>p.map(x=>x.id===m.id?{...x,status:v}:x)); }catch(err){}
                   }}
                     style={{ flex:1,padding:"5px 8px",borderRadius:8,border:`1px solid rgba(34,197,94,.4)`,background:darkMode?"#1a2744":"white",color:tc,fontSize:12,fontFamily:"'Tajawal'",cursor:"pointer" }}>
@@ -6236,7 +6230,7 @@ const AdminScreen = ({ darkMode, currentUser }) => {
                   ? `هل تريد قبول وتفعيل حساب "${confirmModal.name}"؟ سيتم إرسال بريد تأكيد له.`
                   : confirmModal.type==="renew"
                   ? `حدّد عدد أيام الاشتراك الجديدة لـ "${confirmModal.name}".`
-                  : `هل تريد رفض طلب "${confirmModal.name}"؟ سيتم إرسال إشعار بالرفض.`}
+                  : `هل تريد رفض طلب "${confirmModal.name}"؟ سيتم حذف طلب التسجيل وحساب دخوله لتحرير رقم الموبايل.`}
               </p>
               {(confirmModal.type==="approve" || confirmModal.type==="renew") && (
                 <div style={{ marginBottom:18, textAlign:"right" }}>
