@@ -7,7 +7,28 @@ if(!s.includes('// unique-member-phone-v1')){
     if(auth.currentUser?.email===email && !(await getDoc(doc(db,"members",auth.currentUser.uid))).exists()){
       await reauthenticateWithCredential(auth.currentUser,EmailAuthProvider.credential(email,password));
       cred={user:auth.currentUser};
-    }else{cred=await createUserWithEmailAndPassword(auth,email,password);}`);
+    } else {
+      try {
+        cred = await createUserWithEmailAndPassword(auth, email, password);
+      } catch (error) {
+        if (error.code !== "auth/email-already-in-use") throw error;
+
+        // Resume an interrupted registration only after verifying the existing credentials.
+        try {
+          cred = await signInWithEmailAndPassword(auth, email, password);
+        } catch (signInError) {
+          if (["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"].includes(signInError.code)) {
+            throw error;
+          }
+          throw signInError;
+        }
+
+        if ((await getDoc(doc(db, "members", cred.user.uid))).exists()) {
+          await fbSignOut(auth);
+          throw error;
+        }
+      }
+    }`);
  once('    await setDoc(doc(db,"members",cred.user.uid), { ...data, uid:cred.user.uid, createdAt:new Date(), views:0, calls:0, waMessages:0, saves:0, rating:0, reviews:0, type:data.type||"starter" });','    await httpsCallable(functions,"completeMemberRegistration")({name:data.name,phone:data.phone,accountKind:data.accountKind});');
  once('if(e.code==="auth/email-already-in-use") setError("رقم الموبايل مسجل مسبقاً، سجّل دخولك");','if(e.code==="auth/email-already-in-use"||e.code==="functions/already-exists") setError("رقم الموبايل مسجل بالفعل. سجّل الدخول بحسابك الحالي؛ لا يمكن استخدام نفس الرقم لحساب عميل ومشترك.");');
  s=s.replaceAll('    if (digits.startsWith("20") && digits.length >= 12) digits = "0" + digits.slice(2);','    if (digits.startsWith("0020")) digits = digits.slice(2);\n    if (digits.startsWith("20") && digits.length === 12) digits = "0" + digits.slice(2);');
