@@ -55,13 +55,17 @@ jobs:
           const fs = require('node:fs');
           const live = fs.readFileSync('/tmp/production-firestore.rules', 'utf8');
           const name = 'registrationWasRejected';
-          if (live.includes(name)) {
-            throw Error('Rejection guard already exists in production; review before replacing it.');
-          }
           const start = live.indexOf('    match /members/{memberId} {');
           const end = live.indexOf('      match /reviews/', start);
           if (start < 0 || end < 0) throw Error('Live member rules anchors differ');
           const section = live.slice(start, end);
+          if (live.includes(name)) {
+            if ((section.match(/!registrationWasRejected\(memberId\)/g) || []).length !== 3) {
+              throw Error('Existing rejection guard is incomplete; review required.');
+            }
+            fs.writeFileSync('firestore.rules', live);
+            process.exit(0);
+          }
           const seen = new Set();
           const patched = section.replace(/^(\s*allow (create|update|delete): if )([\s\S]*?);/gm, (_, prefix, op, expression) => {
             if (seen.has(op)) throw Error('Unexpected duplicate member rule: ' + op);
@@ -76,6 +80,8 @@ jobs:
           NODE
       - name: Validate Firestore rules before releasing
         run: npx firebase-tools emulators:exec --project demo-daleel-rules --config firebase.rules-test.json --only firestore "node scripts/test-firestore-rules.js"
+      - name: Deploy updated Firestore rules only
+        run: npx firebase-tools deploy --project eldalel-elshamel --only firestore:rules --non-interactive
       - name: Deploy registration functions
         run: |
           set +e
@@ -92,8 +98,6 @@ jobs:
             https://us-central1-eldalel-elshamel.cloudfunctions.net/adminRejectMemberRegistration)"
           test "$status" = 401
           node -e 'if(JSON.parse(require("node:fs").readFileSync(process.argv[1])).error?.status!=="UNAUTHENTICATED") process.exit(1)' "$RUNNER_TEMP/registration-response.json"
-      - name: Deploy updated Firestore rules only
-        run: npx firebase-tools deploy --project eldalel-elshamel --only firestore:rules --non-interactive
       - name: Publish verified website
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
