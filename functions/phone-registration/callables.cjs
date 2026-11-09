@@ -12,6 +12,22 @@ function safeError(error){if(error instanceof HttpsError)return error;if(['alrea
 exports.assertMemberPhoneAvailable=onCall({invoker:'public'},async request=>{try{await limitRequests(request);return await policy.assertAvailable(db,request.data?.phone)}catch(e){throw safeError(e)}});
 exports.completeMemberRegistration=onCall({invoker:'public'},async request=>{if(!request.auth?.uid)throw new HttpsError('unauthenticated','سجّل الدخول لإكمال التسجيل');try{await limitRequests(request);return await policy.completeRegistration(db,request.auth.uid,request.auth.token.email,request.data)}catch(e){throw safeError(e)}});
 
+exports.adminRejectMemberRegistration = onCall({ invoker:'public' }, async request => {
+ if(!request.auth?.uid) throw new HttpsError('unauthenticated', 'سجّل الدخول أولًا');
+ const auth = admin.auth();
+ try {
+  const actor = await auth.getUser(request.auth.uid);
+  if(actor.disabled) throw new HttpsError('permission-denied', 'الحساب موقوف');
+  return await policy.rejectRegistration(db, auth, actor.uid, request.data?.memberId);
+ } catch(error) {
+  if(error instanceof HttpsError) throw error;
+  if(['invalid-argument', 'permission-denied', 'failed-precondition', 'not-found'].includes(error.code)) {
+   throw new HttpsError(error.code, error.message);
+  }
+  throw new HttpsError('unavailable', 'تعذر إكمال الرفض. حاول مرة تانية');
+ }
+});
+
 // Preserve compatibility with already distributed clients that create a canonical profile.
 exports.indexMemberPhone=require('firebase-functions/v2/firestore').onDocumentCreated('members/{uid}',async event=>{
  const member=event.data?.data();if(!member)return;
