@@ -97,10 +97,15 @@ service cloud.firestore {
     // ----------------------------------------------------------
     // MEMBERS
     // ----------------------------------------------------------
+    function registrationWasRejected(memberId) {
+      return exists(/databases/$(database)/documents/rejectedMemberRegistrations/$(memberId));
+    }
+
     match /members/{memberId} {
       allow get, list: if (resource.data.get('status', '') == 'approved') || self(memberId) || isAdmin();
 
       allow create: if self(memberId)
+        && !registrationWasRejected(memberId)
         && request.resource.data.uid == request.auth.uid
         && !request.resource.data.keys().hasAny([
           'isAdmin',
@@ -115,8 +120,9 @@ service cloud.firestore {
         ])
         && (!('status' in request.resource.data) || request.resource.data.status == 'pending');
 
-      allow update: if isAdmin()
+      allow update: if isAdmin() && !registrationWasRejected(memberId)
         || (self(memberId)
+          && !registrationWasRejected(memberId)
           && memberProtectedFieldsUnchanged()
           && memberEngagementFieldsUnchanged()
           && ownPlanChangeAllowed())
@@ -127,7 +133,7 @@ service cloud.firestore {
         // no browser/mobile client may update them directly.
         ;
 
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() && !registrationWasRejected(memberId);
 
       match /reviews/{reviewId} {
         allow read: if true;
