@@ -1,1 +1,1 @@
-Deploy persistent login update c83f6f8ba1c025dbc3c94f7767f484faf4132a89
+Deploy registration recovery 4e6397b410a54fe174251d490cfee4e7c1c2e076
