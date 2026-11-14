@@ -9,8 +9,9 @@ import java.util.*;
 public class PlayBillingPlugin extends Plugin implements PurchasesUpdatedListener {
   private BillingClient client;
   private PluginCall purchaseCall;
-  private final Set<String> products = new HashSet<>(Arrays.asList("eldalel_starter_annual","eldalel_basic_annual","eldalel_premium_annual","eldalel_vip_annual","eldalel_company_annual","eldalel_elite_annual"));
+  private final Map<String, String> products = new HashMap<>();
   @Override public void load() {
+    /* PLAY_PRODUCT_PLANS */
     client = BillingClient.newBuilder(getContext()).setListener(this)
       .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().enablePrepaidPlans().build())
       .enableAutoServiceReconnection().build();
@@ -49,23 +50,23 @@ public class PlayBillingPlugin extends Plugin implements PurchasesUpdatedListene
   }
   private void query(PluginCall call, boolean buy) {
     String id=call.getString("productId");
-    if(!products.contains(id)) {call.reject("باقة غير معروفة");return;}
+    if(id == null || !products.containsKey(id)) {call.reject("باقة غير معروفة");return;}
     ready(call,()->client.queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(Collections.singletonList(QueryProductDetailsParams.Product.newBuilder().setProductId(id).setProductType(BillingClient.ProductType.SUBS).build())).build(),(r,details)->{
       if(r.getResponseCode()!=BillingClient.BillingResponseCode.OK || details.getProductDetailsList().isEmpty()){call.reject("الباقة غير متاحة في Google Play حاليًا");return;}
       ProductDetails d=details.getProductDetailsList().get(0);
       ProductDetails.SubscriptionOfferDetails offer=null;
-      if(d.getSubscriptionOfferDetails()!=null) for(ProductDetails.SubscriptionOfferDetails o:d.getSubscriptionOfferDetails()) if("annual-prepaid".equals(o.getBasePlanId()) && o.getOfferId()==null) offer=o;
+      if(d.getSubscriptionOfferDetails()!=null) for(ProductDetails.SubscriptionOfferDetails o:d.getSubscriptionOfferDetails()) if(products.get(id).equals(o.getBasePlanId()) && o.getOfferId()==null) offer=o;
       if(offer==null){call.reject("الاشتراك السنوي غير متاح");return;}
       List<ProductDetails.PricingPhase> phases=offer.getPricingPhases().getPricingPhaseList();
-      if(phases.size()!=1 || phases.get(0).getRecurrenceMode()!=3 || !"P1Y".equals(phases.get(0).getBillingPeriod())){call.reject("إعداد مدة الباقة غير صحيح");return;}
+      if(phases.size()!=1 || phases.get(0).getRecurrenceMode()!=ProductDetails.RecurrenceMode.INFINITE_RECURRING || !"P1Y".equals(phases.get(0).getBillingPeriod())){call.reject("إعداد مدة الباقة غير صحيح");return;}
       if(!buy){
         JSObject out=new JSObject();out.put("price",phases.get(0).getFormattedPrice());call.resolve(out);return;
       }
       String account=call.getString("accountId");
       if(account==null || !account.matches("[a-f0-9]{64}")){call.reject("يلزم تأكيد الحساب");return;}
-      if(purchaseCall!=null){call.reject("هناك عملية شراء مفتوحة");return;}
       BillingFlowParams params=BillingFlowParams.newBuilder().setObfuscatedAccountId(account).setProductDetailsParamsList(Collections.singletonList(BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(d).setOfferToken(offer.getOfferToken()).build())).build();
       getActivity().runOnUiThread(()->{
+        if(purchaseCall!=null){call.reject("هناك عملية شراء مفتوحة");return;}
         purchaseCall=call;
         BillingResult launched=client.launchBillingFlow(getActivity(),params);
         if(launched.getResponseCode()!=BillingClient.BillingResponseCode.OK){purchaseCall=null;call.reject("تعذر فتح الدفع؛ جرّب استعادة المشتريات");}

@@ -1,8 +1,10 @@
 name: Build Android Release AAB
 
 # نسخة Release الموقعة المخصصة لـ Google Play.
-# التشغيل يدوي فقط لأن التوقيع عملية إصدار، مش اختبار مع كل push.
+# يبني فرع الإصدار المخصص للاختبار ويمكن تشغيله يدويًا.
 on:
+  push:
+    branches: [release/android-2.1.12]
   workflow_dispatch:
     inputs:
       version_code:
@@ -84,8 +86,8 @@ jobs:
 
       - name: Set Play release version
         env:
-          PLAY_VERSION_CODE: ${{ inputs.version_code }}
-          PLAY_VERSION_NAME: ${{ inputs.version_name }}
+          PLAY_VERSION_CODE: ${{ inputs.version_code || '12' }}
+          PLAY_VERSION_NAME: ${{ inputs.version_name || '2.1.12' }}
         run: |
           python3 - <<'PY'
           import os, re
@@ -121,6 +123,9 @@ jobs:
             -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
+
+      - name: Verify AAB signature
+        run: jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload signed AAB
         uses: actions/upload-artifact@v4

@@ -1,4 +1,5 @@
 const fs=require('node:fs');
+fs.copyFileSync('functions/play-billing/catalog.json','src/billing/catalog.generated.json');
 let s=fs.readFileSync('src/App.jsx','utf8');
 if(!s.includes('// PLAY BILLING INTEGRATION')){
  const once=(a,b)=>{if(s.split(a).length!==2)throw Error('billing anchor: '+a.slice(0,70));s=s.replace(a,b)};
@@ -12,8 +13,8 @@ if(!s.includes('// PLAY BILLING INTEGRATION')){
  if(!isPlayApp())return <WebPaymentScreen {...props}/>;
  return <main dir="rtl" style={{padding:20,minHeight:"100vh",background:"#f5f4ec",color:"#163e30"}}>
   <button className="btn btn-outline" onClick={props.onBack}>رجوع</button><h2>اختر باقتك السنوية</h2>
-  {Object.entries(PLANS).map(([key,p])=><button key={key} className="btn btn-outline" style={{display:"block",width:"100%",marginBottom:10,borderWidth:plan===key?3:1}} onClick={()=>setPlan(key)}>{p.label} — <PlayPrice plan={key}/><small style={{display:"block"}}>حتى 5 صور أعمال، {getPostLimit(key,cfg)} منشورات شهريًا</small></button>)}
-  <PlayCheckout plan={plan} uid={auth.currentUser?.uid} invoke={invokePlayBilling} onSuccess={props.onSuccess}/>
+  {Object.entries(PLANS).map(([key,p])=><button key={key} className="btn btn-outline" style={{display:"block",width:"100%",marginBottom:10,borderWidth:plan===key?3:1}} onClick={()=>setPlan(key)}>{p.label} — <PlayPrice plan={key} member={props.member}/><small style={{display:"block"}}>حتى 5 صور أعمال، {getPostLimit(key,cfg)} منشورات شهريًا</small></button>)}
+  <PlayCheckout member={props.member} plan={plan} uid={auth.currentUser?.uid} invoke={invokePlayBilling} onSuccess={props.onSuccess}/>
  </main>;
 };
 // REGISTER / MY PROFILE SCREEN`);
@@ -21,7 +22,7 @@ if(!s.includes('// PLAY BILLING INTEGRATION')){
  const end=s.indexOf('          {/* Step 5 - Waiting for approval */}',start);
  if(start<0||end<0)throw Error('registration payment section missing');
  const old=s.slice(start,end);
- s=s.slice(0,start)+`          {mode==="register" && regStep===4 && isPlayApp() && <><PlayCheckout plan={form.plan} uid={createdUser?.uid} invoke={invokePlayBilling} onSuccess={()=>{localStorage.setItem("daleel_user",JSON.stringify(createdUser));onLogin(createdUser);}}/><button className="btn btn-outline" onClick={()=>setRegStep(3)}>رجوع للباقات</button></>}
+ s=s.slice(0,start)+`          {mode==="register" && regStep===4 && isPlayApp() && <><PlayCheckout member={{accountKind}} plan={form.plan} uid={createdUser?.uid} invoke={invokePlayBilling} onSuccess={()=>{localStorage.setItem("daleel_user",JSON.stringify(createdUser));onLogin(createdUser);}}/><button className="btn btn-outline" onClick={()=>setRegStep(3)}>رجوع للباقات</button></>}
 `+old.replace('regStep===4 &&','regStep===4 && !isPlayApp() &&')+s.slice(end);
  once('mode==="register" && regStep===5 &&','mode==="register" && regStep===5 && !isPlayApp() &&');
  once('  const doPayment = (method) => {','  const doPayment = (method) => {\n    if(isPlayApp())return;');
@@ -40,7 +41,7 @@ if(!s.includes('// PLAY BILLING INTEGRATION')){
  s=s.replace('{ subscriptionEnd: newEnd, subscriptionRenewedAt:', '{ billingProvider:"manual", playTokenHash:deleteField(), subscriptionEnd: newEnd, subscriptionRenewedAt:');
  s=s.replace('updateData.subscriptionEnd = subEnd;', 'updateData.subscriptionEnd = subEnd; updateData.billingProvider="manual"; updateData.playTokenHash=deleteField();');
  // Native policy follows Play refunds; retain the existing website payment term.
- s=s.replace('const PROGRAM_PAYMENT_TERM = "','const PROGRAM_PAYMENT_TERM = isPlayApp() ? "اشتراكات التطبيق تُشترى عبر Google Play لمدة سنة دون تجديد تلقائي. تخضع طلبات الاسترداد لسياسات Google Play والحقوق القانونية الواجبة. لا يشترط استلام تصميم لتفعيل الشراء المؤكد." : "');
+ s=s.replace('const PROGRAM_PAYMENT_TERM = "','const PROGRAM_PAYMENT_TERM = isPlayApp() ? "اشتراكات التطبيق تُشترى عبر Google Play لمدة سنة وتتجدد تلقائيًا ما لم تلغِ التجديد من Google Play. تخضع طلبات الاسترداد لسياسات Google Play والحقوق القانونية الواجبة. لا يشترط استلام تصميم لتفعيل الشراء المؤكد." : "');
  s=s.replace('const PromoBanner = ({ cfg }) => (','const PromoBanner = ({ cfg }) => isPlayApp() ? null : (');
  fs.writeFileSync('src/App.jsx',s);
 }

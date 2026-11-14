@@ -1,0 +1,15 @@
+{
+  "packageName": "com.company.eldalelelshamel",
+  "basePlanId": "annual",
+  "billingPeriod": "P1Y",
+  "products": [
+    {"id":"craftsman_100_yearly","role":"technician","plan":"starter","price":100,"title":"صنايعي / فني – مبتدئ"},
+    {"id":"craftsman_200_yearly","role":"technician","plan":"basic","price":200,"title":"صنايعي / فني – أساسي"},
+    {"id":"craftsman_400_yearly","role":"technician","plan":"premium","price":400,"title":"صنايعي / فني – مميز"},
+    {"id":"craftsman_600_yearly","role":"technician","plan":"vip","price":600,"title":"صنايعي / فني – VIP"},
+    {"id":"supplier_600_yearly","basePlanId":"annual-eg","role":"supplier","plan":"vip","price":600,"title":"مورد / شركة – أساسي"},
+    {"id":"supplier_1000_yearly","role":"supplier","plan":"company","price":1000,"title":"مورد / شركة – شركات"},
+    {"id":"supplier_2000_yearly","role":"supplier","plan":"elite","price":2000,"title":"مورد / شركة – النخبة"},
+    {"id":"supplier_6000_yearly","role":"supplier","plan":"supplier_banner","price":6000,"title":"مورد / شركة – إعلان ومتجر"}
+  ]
+}
