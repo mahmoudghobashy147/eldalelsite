@@ -1,4 +1,4 @@
-name: Diagnose Google Play catalog access
+name: Enable verified Google Play checkout
 on:
   push:
     branches: [ops/play-catalog-diagnostic]
@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --prefix functions
-      - name: Read annual base plans
+      - name: Verify active plans and enable checkout
         run: |
           node <<'JS'
           const {GoogleAuth,Impersonated}=require('./functions/node_modules/google-auth-library');
@@ -40,12 +40,13 @@ jobs:
                 if(current?.autoRenewingBasePlanType?.billingPeriodDuration!==catalog.billingPeriod || eg?.newSubscriberAvailability!==true || eg?.price?.currencyCode!=='EGP' || Number(eg?.price?.units)!==product.price || Number(eg?.price?.nanos||0)!==0) throw Error('Plan validation failed '+product.id);
                 plans.push({productUrl,basePlanId,current});
               }
-              for(const {productUrl,basePlanId,current} of plans) {
-                if(current.state!=='ACTIVE') await client.request({url:productUrl+'/basePlans/'+basePlanId+':activate',method:'POST',data:{}});
-                const saved=(await client.request({url:productUrl})).data.basePlans.find(p=>p.basePlanId===basePlanId);
-                if(saved?.state!=='ACTIVE') throw Error('Activation readback failed '+productUrl);
-                console.log('Verified active annual plan:',productUrl.split('/').at(-1),basePlanId);
-              }
+              if(!plans.every(({current})=>current.state==='ACTIVE')) throw Error('Annual plans must be active');
+              const admin=require('./functions/node_modules/firebase-admin');
+              admin.initializeApp({credential:admin.credential.cert(JSON.parse(json)),projectId:'eldalel-elshamel'});
+              const ref=admin.firestore().doc('config/playBilling');
+              await ref.set({enabled:true},{merge:true});
+              if((await ref.get()).data()?.enabled!==true) throw Error('Checkout flag readback failed');
+              console.log('Verified Firebase Play checkout enabled');
             }catch(error){
               const data=error.response?.data?.error;
               console.error('Play API rejected catalog access',error.response?.status,data?.status,data?.message,error.message);
