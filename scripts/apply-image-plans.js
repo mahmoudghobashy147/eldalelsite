@@ -5,7 +5,7 @@ replace('import { useState,','import planVideoPolicy from "./plan-video-policy.j
 function planLine(key,line){const rx=new RegExp('^  '+key+':.*$', 'm');const found=s.match(rx);if(!found)throw Error('missing plan '+key);if(found[0]!==line)s=s.replace(rx,line)}
 planLine('starter','  starter: { label:"مبتدئ", price:100, color:"#0EA5E9", maxPhotos:5, maxPosts:0, maxVideos:0, searchPriority:4, features:["تصفح الأقسام والتواصل مع الأعضاء","ظهور في الدليل","رفع حتى 5 صور أعمال","تصميم إعلاني هدية"] },');
 planLine('basic','  basic: { label:"أساسي", price:200, color:C.info, maxPhotos:15, maxPosts:5, maxVideos:1, searchPriority:3, features:["رفع حتى 15 صورة أعمال","5 منشورات شهريًا","فيديو واحد شهريًا","تفاعل وتعليقات على المنشورات","تصميمان إعلانيان وصفحة تعريفية"] },');
-planLine('premium','  premium: { label:"مميز", price:300, color:C.gold, maxPhotos:10, maxPosts:10, maxVideos:1, searchPriority:2, features:["ظهور في الدليل وأولوية في البحث","رفع حتى 10 صور أعمال","فيديو واحد لعرض الأعمال","صفحة تعريفية وفيديو ومنشورات هدية"] },');
+planLine('premium','  premium: { label:"مميز", price:400, color:C.gold, maxPhotos:10, maxPosts:10, maxVideos:1, searchPriority:2, features:["ظهور في الدليل وأولوية في البحث","رفع حتى 10 صور أعمال","فيديو واحد لعرض الأعمال","صفحة تعريفية وفيديو ومنشورات هدية"] },');
 planLine('vip','  vip: { label:"VIP", price:600, color:C.purple, maxPhotos:30, maxPosts:20, maxVideos:4, searchPriority:1, features:["ظهور على الصفحة الرئيسية","رفع حتى 30 صورة أعمال","4 فيديوهات لعرض الأعمال","صفحة تعريفية وفيديو ومنشورات هدية"] },');
 // Every subscription permits five portfolio images; do not alter post limits or existing images.
 for(const key of ['starter','basic','premium','vip','company','elite']){
@@ -16,7 +16,7 @@ for(const key of ['starter','basic','premium','vip','company','elite']){
  line=line.replace(/حتى \d+ صورة بمعرض الأعمال/g,'حتى 5 صور بمعرض الأعمال');
  s=s.replace(rx,line);
 }
-{const a='planPrices: { starter:60, basic:120, premium:250, vip:600, company:1000, elite:1500 },', b='planPrices: { starter:100, basic:200, premium:300, vip:600, company:1000, elite:1500 },';let n=s.split(a).length-1;if(n===2)s=s.split(a).join(b);else if(n!==0)throw Error('default prices: expected two anchors');}
+{const a='planPrices: { starter:60, basic:120, premium:250, vip:600, company:1000, elite:1500 },', b='planPrices: { starter:100, basic:200, premium:400, vip:600, company:1000, elite:1500 },';let n=s.split(a).length-1;if(n===2)s=s.split(a).join(b);else if(n!==0)throw Error('default prices: expected two anchors');}
 replace('pl.features.slice(0,3).map','[\`صور الأعمال: حتى \${pl.maxPhotos} صور\`, getPostLimit(key,cfg)>0?\`حتى \${getPostLimit(key,cfg)} منشور شهريًا\`:"لا تشمل منشورات شهرية", ...pl.features.filter(f=>!f.includes("صور")&&!f.includes("صورة")&&!/منشور.*شهري|منشورات.*شهري/.test(f)).slice(0,1)].map','show work photos and monthly posts per plan');
 replace('  const videoLimit = getVideoLimit(memberType, cfg);','  const videoLimit = memberType==="basic"?1:memberType==="premium"?1:memberType==="vip"?4:getVideoLimit(memberType,cfg);','video entitlement');
 replace('setVideoCount(userPosts.filter(p => p.video).length);','setVideoCount(planVideoPolicy.countPlanVideos(userPosts,postsThisMonth,getMemberPlan(m)));','monthly basic video');

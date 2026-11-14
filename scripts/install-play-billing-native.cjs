@@ -1,7 +1,13 @@
 const fs=require('node:fs');
 const dir='android/app/src/main/java/com/company/eldalelelshamel';
 fs.mkdirSync(dir,{recursive:true});
-fs.copyFileSync('native/play-billing/PlayBillingPlugin.java',`${dir}/PlayBillingPlugin.java`);
+const catalog=require('../functions/play-billing/catalog.json');
+const bridge=fs.readFileSync('native/play-billing/PlayBillingPlugin.java','utf8');
+const plans=catalog.products.map(product=>
+  `products.put(${JSON.stringify(product.id)}, ${JSON.stringify(product.basePlanId || catalog.basePlanId)});`
+).join('\n    ');
+fs.writeFileSync(`${dir}/PlayBillingPlugin.java`,bridge.replace('/* PLAY_PRODUCT_PLANS */',plans));
+
 let s=fs.readFileSync(`${dir}/MainActivity.java`,'utf8');
 if(!s.includes('registerPlugin(PlayBillingPlugin.class)'))s=s.replace(/public class MainActivity extends BridgeActivity\s*\{/,`public class MainActivity extends BridgeActivity {
   @Override public void onCreate(android.os.Bundle savedInstanceState) {

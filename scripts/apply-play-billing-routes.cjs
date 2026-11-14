@@ -9,8 +9,8 @@ function replace(from, to) {
 }
 // Keep native checkout and registration; remove shared external-payment entry points.
 if (!app.includes('<PlayCheckout') || !app.includes('!isPlayApp() && <')) throw Error('Missing platform checkout separation');
-replace('<PlayCheckout plan={plan}', '<PlayCheckout supportPhone={cfg.whatsapp} plan={plan}');
-replace('<PlayCheckout plan={form.plan}', '<PlayCheckout supportPhone={cfg.whatsapp} plan={form.plan}');
+replace('<PlayCheckout member={props.member} plan={plan}', '<PlayCheckout supportPhone={cfg.whatsapp} member={props.member} plan={plan}');
+replace('<PlayCheckout member={{accountKind}} plan={form.plan}', '<PlayCheckout supportPhone={cfg.whatsapp} member={{accountKind}} plan={form.plan}');
 replace('activeTab !== "messages" && <FloatingWhatsApp', '!isPlayApp() && activeTab !== "messages" && <FloatingWhatsApp');
 replace('expired ? "⚠️ اشتراكك منتهي، تواصل مع الإدارة للتجديد"', 'expired ? (isPlayApp() ? "⚠️ اشتراكك منتهي" : "⚠️ اشتراكك منتهي، تواصل مع الإدارة للتجديد")');
 

@@ -3,7 +3,7 @@ const {accountId,hash}=require('./policy.cjs');
 function harness(){
  const rows=new Map([['members/alice',{accountKind:'subscriber',status:'pending'}],['members/bob',{accountKind:'subscriber',status:'pending'}]]);
  let acknowledgements=0;
- let purchase={subscriptionState:'SUBSCRIPTION_STATE_ACTIVE',startTime:new Date().toISOString(),externalAccountIdentifiers:{obfuscatedExternalAccountId:accountId('alice')},acknowledgementState:'ACKNOWLEDGEMENT_STATE_PENDING',lineItems:[{productId:'eldalel_basic_annual',prepaidPlan:{},offerDetails:{basePlanId:'annual-prepaid'},expiryTime:new Date(Date.now()+86400000).toISOString()}]};
+ let purchase={subscriptionState:'SUBSCRIPTION_STATE_ACTIVE',startTime:new Date().toISOString(),externalAccountIdentifiers:{obfuscatedExternalAccountId:accountId('alice')},acknowledgementState:'ACKNOWLEDGEMENT_STATE_PENDING',lineItems:[{productId:'craftsman_200_yearly',autoRenewingPlan:{},offerDetails:{basePlanId:'annual'},expiryTime:new Date(Date.now()+86400000).toISOString()}]};
  const ref=path=>({path,get:async()=>snap(path)}),snap=path=>({exists:rows.has(path),data:()=>rows.get(path)});
  const db={collection:name=>({doc:id=>ref(name+'/'+id)}),runTransaction:async fn=>{const changes=[];await fn({get:async r=>snap(r.path),set:(r,d)=>changes.push([r.path,{...rows.get(r.path),...d}]),update:(r,d)=>changes.push([r.path,{...rows.get(r.path),...d}])});changes.forEach(([k,v])=>rows.set(k,v))}};
  class HttpsError extends Error{constructor(code,message){super(message);this.code=code}}
@@ -27,3 +27,33 @@ test('refunded/revoked state removes only matching Play entitlement',async()=>{c
 test('stale expired Play token cannot remove newer manual entitlement',async()=>{const h=harness();await h.api.verifyPlayPurchase(request());h.rows.set('members/alice',{status:'approved',billingProvider:'manual',subscriptionEnd:{toMillis:()=>Date.now()+999999}});h.getPurchase().subscriptionState='SUBSCRIPTION_STATE_EXPIRED';await h.api.verifyPlayPurchase(request());assert.equal(h.rows.get('members/alice').status,'approved')});
 test('active manual subscription cannot be overwritten by Play',async()=>{const h=harness();h.rows.set('members/alice',{status:'approved',subscriptionEnd:{toMillis:()=>Date.now()+999999}});await assert.rejects(h.api.verifyPlayPurchase(request()),{code:'failed-precondition'});assert.equal(h.acks(),0)});
 test('token ledger prevents reassignment even if Google response owner changed',async()=>{const h=harness();await h.api.verifyPlayPurchase(request());h.getPurchase().externalAccountIdentifiers.obfuscatedExternalAccountId=accountId('bob');await assert.rejects(h.api.verifyPlayPurchase(request('bob')),{code:'permission-denied'});assert.equal(h.rows.get('playPurchases/'+hash(request().data.purchaseToken)).uid,'alice')});
+
+test('prepare requires the role-specific product for a shared plan key',async()=>{
+ const h=harness();
+ h.rows.set('config/playBilling',{enabled:true});
+ const prepare=productId=>h.api.preparePlayPurchase({auth:{uid:'alice'},data:{productId}});
+ h.rows.set('members/alice',{accountKind:'technician',status:'pending'});
+ assert.equal((await prepare('craftsman_600_yearly')).productId,'craftsman_600_yearly');
+ await assert.rejects(prepare('supplier_600_yearly'),{code:'failed-precondition'});
+ h.rows.set('members/alice',{accountKind:'supplier',status:'pending'});
+ assert.equal((await prepare('supplier_600_yearly')).productId,'supplier_600_yearly');
+ await assert.rejects(prepare('craftsman_600_yearly'),{code:'failed-precondition'});
+ h.rows.set('members/alice',{type:'customer',status:'approved'});
+ await assert.rejects(prepare('supplier_600_yearly'),{code:'failed-precondition'});
+});
+
+test('pending without expiry reconciles when Play confirms payment',async()=>{
+ const h=harness();
+ const p=h.getPurchase();
+ const expiry=p.lineItems[0].expiryTime;
+ delete p.lineItems[0].expiryTime;
+ p.subscriptionState='SUBSCRIPTION_STATE_PENDING';
+ await h.api.verifyPlayPurchase(request());
+ assert.equal(h.rows.get('members/alice').status,'pending');
+ assert.equal(h.acks(),0);
+ p.lineItems[0].expiryTime=expiry;
+ p.subscriptionState='SUBSCRIPTION_STATE_ACTIVE';
+ await h.api.verifyPlayPurchase(request());
+ assert.equal(h.rows.get('members/alice').status,'approved');
+ assert.equal(h.acks(),1);
+});

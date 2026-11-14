@@ -10,6 +10,16 @@ const replace = (from, to) => {
 };
 replace('accountPlanLabel,needsPaidActivation,canManageCatalog}', 'accountPlanLabel,needsPaidActivation,canManageCatalog,availablePlanKeys}');
 replace('const PLANS = {', `${marker}
+const planBenefits = (member, key) => {
+  const role = accountRole(member);
+  if (role !== "supplier") return PLANS[key].features;
+  return ({
+    vip:["كتالوج حتى 60 منتج","تصميم إعلاني وفيديو إعلاني"],
+    company:["كتالوج حتى 150 منتج","ظهور في الصفحة الرئيسية","تصميمان وفيديوهان إعلانيان"],
+    elite:["كتالوج حتى 350 منتج","ظهور في الصفحة الرئيسية","4 تصميمات و4 فيديوهات إعلانية"],
+    supplier_banner:["كتالوج منتجات","إعلان في البنر الرئيسي","متجر إلكتروني داخل الدليل"]
+  })[key] || PLANS[key].features;
+};
 const PLANS = {
   supplier_banner: {label:"إعلان رئيسي ومتجر",price:6000,color:"#855617",maxPhotos:5,maxPosts:80,maxVideos:10,searchPriority:-2,features:["إعلان في البنر الرئيسي","متجر إلكتروني داخل الدليل","كتالوج المنتجات"]},`);
 replace('  const v = cfg?.planPrices?.[type];', '  const v = cfg?.planPrices?.[type];\n  if (PLANS[type]) return PLANS[type].price;');
@@ -24,12 +34,17 @@ for (const [start,end,member] of [
   const a = app.indexOf(start), b = app.indexOf(end,a);
   const section = app.slice(a,b);
   if (section.split(options).length !== 2) throw Error('Missing role plan list: '+start);
-  app = app.slice(0,a)+section.replace(options,`availablePlanKeys(${member}).map(key=>[key,PLANS[key]]).map(([key,pl])=>`)+app.slice(b);
+  app = app.slice(0,a)+section.replaceAll('pl.features', `planBenefits(${member}, key)`).replace(options,`availablePlanKeys(${member}).map(key=>[key,PLANS[key]]).map(([key,pl])=>`).replaceAll('<PlayPrice plan={key}/>', `<PlayPrice plan={key} member={${member}}/>`)+app.slice(b);
 }
 replace('const WebPaymentScreen = ({ onBack, darkMode, onSuccess })','const WebPaymentScreen = ({ onBack, darkMode, onSuccess, member })');
 replace('const [plan, setPlan] = useState("premium");','const [plan, setPlan] = useState(()=>availablePlanKeys(member)[0]);');
 replace('const [plan,setPlan]=useState("basic");','const [plan,setPlan]=useState(()=>availablePlanKeys(props.member)[0]);');
 replace('Object.entries(PLANS).map(([key,p])=>','availablePlanKeys(props.member).map(key=>[key,PLANS[key]]).map(([key,p])=>');
+replace('منشورات شهريًا</small></button>)','منشورات شهريًا</small><small style={{display:"block"}}>{planBenefits(props.member,key).join(" · ")}</small></button>)');
+replace('profile.type!=="starter" && profile.subscriptionEnd','profile.subscriptionEnd');
+replace('const expired = daysLeft <= 0;', 'const expired = endD.getTime() <= Date.now();');
+replace(' : `⏳ متبقي ${daysLeft} يوم على انتهاء الاشتراك`}', ' : `اشتراك سارٍ · متبقي ${daysLeft} يوم`}<br/>تاريخ انتهاء الفترة الحالية {endD.toLocaleDateString("ar-EG")}');
+replace('⬆️ ترقية الاشتراك</button>', '{isPlayApp()?"الباقات واستعادة المشتريات":"⬆️ ترقية الاشتراك"}</button>');
 replace('<PaymentScreen onBack={()=>setShowPayment(false)} darkMode={darkMode} onSuccess={handlePaySuccess}/></AccountPaymentGate>', '{member=><PaymentScreen member={member} onBack={()=>setShowPayment(false)} darkMode={darkMode} onSuccess={handlePaySuccess}/>}</AccountPaymentGate>');
 fs.writeFileSync(path,app);
 
