@@ -1,7 +1,25 @@
-// Account role is separate from the paid subscription tier. Keep legacy data intact.
+// Account roles are independent of subscription tiers and legacy profile types.
 const isCustomerAccount = member => member?.accountKind === 'customer' || (!member?.accountKind && (member?.type === 'customer' || member?.plan === 'customer'));
-const accountRole = member => isCustomerAccount(member) ? 'customer' : 'professional';
-const accountRoleLabel = member => isCustomerAccount(member) ? 'عميل' : ({company:'مشترك / شركة',engineer:'مشترك / مهندس',supplier:'مشترك / مورد',contractor:'مشترك / مقاول'}[member?.type] || 'مشترك / صنايعي');
+const isLegacyProfessional = member => !!member && !isCustomerAccount(member) && (!member.accountKind || member.accountKind === 'craftsman');
+const accountRole = member => {
+  if (isCustomerAccount(member)) return 'customer';
+  if (member?.accountKind === 'supplier' || (isLegacyProfessional(member) && ['company', 'supplier'].includes(member.type))) return 'supplier';
+  return 'technician';
+};
+const accountRoleLabel = member => {
+  if (isLegacyProfessional(member)) {
+    return ({company:'مشترك / شركة',engineer:'مشترك / مهندس',supplier:'مشترك / مورد',contractor:'مشترك / مقاول'}[member.type] || 'مشترك / صنايعي');
+  }
+  return ({customer:'عميل',technician:'صنايعي / فني',supplier:'مورد / شركة'})[accountRole(member)];
+};
+const canManageCatalog = member => !!member && (member.isAdmin === true || member.accountKind === 'supplier' || isLegacyProfessional(member));
+const availablePlanKeys = member => {
+  const role = accountRole(member);
+  if (role === 'customer') return [];
+  if (role === 'supplier') return ['vip', 'company', 'elite', 'supplier_banner'];
+  return ['starter', 'basic', 'premium', 'vip'];
+};
 const accountPlanLabel = (member, plans) => isCustomerAccount(member) ? 'باقة العميل — مجانية' : (plans?.[member?.plan || member?.type || 'starter']?.label || 'مبتدئ');
 const needsPaidActivation = member => !!member && !isCustomerAccount(member);
-module.exports = {isCustomerAccount, accountRole, accountRoleLabel, accountPlanLabel, needsPaidActivation};
+
+module.exports = {isCustomerAccount, accountRole, accountRoleLabel, canManageCatalog, availablePlanKeys, accountPlanLabel, needsPaidActivation};

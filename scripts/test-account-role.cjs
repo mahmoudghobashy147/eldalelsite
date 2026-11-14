@@ -9,3 +9,12 @@ test('starter subscriber still requires paid activation',()=>{const m={accountKi
 test('professional labels retain company and craftsman distinction',()=>{assert.equal(accountRoleLabel({type:'company'}),'مشترك / شركة');assert.equal(accountRoleLabel({type:'craftsman'}),'مشترك / صنايعي')});
 test('paid basic subscription remains unchanged',()=>assert.equal(accountPlanLabel({accountKind:'craftsman',plan:'basic'},plans),'أساسي'));
 test('missing member cannot be charged',()=>assert.equal(needsPaidActivation(null),false));
+test('explicit roles are independent of the profile and subscription fields',()=>{
+  const {canManageCatalog}=require('../src/account-role.js');
+  assert.equal(accountRole({accountKind:'supplier',type:'starter'}),'supplier');
+  assert.equal(accountRole({accountKind:'technician',type:'company'}),'technician');
+  assert.equal(canManageCatalog({accountKind:'technician',plan:'elite'}),false);
+  assert.equal(canManageCatalog({accountKind:'customer',plan:'elite'}),false);
+  assert.equal(canManageCatalog({accountKind:'supplier'}),true);
+  assert.equal(canManageCatalog({accountKind:'craftsman',plan:'elite'}),true);
+});

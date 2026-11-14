@@ -1,6 +1,6 @@
 const crypto = require('node:crypto');
 const PACKAGE = 'com.company.eldalelelshamel';
-const PRODUCTS = Object.freeze(Object.fromEntries(['starter','basic','premium','vip','company','elite'].map(plan => [`eldalel_${plan}_annual`, plan])));
+const PRODUCTS = Object.freeze(Object.fromEntries(['starter','basic','premium','vip','company','elite','supplier_banner'].map(plan => [`eldalel_${plan}_annual`, plan])));
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const accountId = uid => hash(`eldalel-play:${uid}`);
 function entitlement(purchase, uid, now = Date.now()) {
