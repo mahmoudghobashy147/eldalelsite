@@ -72,7 +72,15 @@ jobs:
 
 
       - name: Deploy Cloud Functions first
-        run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only functions:completeMemberRegistration,functions:preparePlayPurchase,functions:verifyPlayPurchase,functions:playBillingNotifications,functions:reconcilePlayPurchases --non-interactive
+        shell: bash
+        run: |
+          set +e
+          npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only functions:completeMemberRegistration,functions:preparePlayPurchase,functions:verifyPlayPurchase,functions:playBillingNotifications,functions:reconcilePlayPurchases --non-interactive 2>&1 | tee "$RUNNER_TEMP/registration-functions.log"
+          deploy_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$deploy_status" -ne 0 ]; then
+            grep -q 'Functions successfully deployed but could not set up cleanup policy' "$RUNNER_TEMP/registration-functions.log"
+          fi
 
       - name: Setup Java 21 for Firebase emulators
         uses: actions/setup-java@v5

@@ -1,1 +1,1 @@
-Publish registration account types and annual plans.
+Continue registration and subscription release after successful Functions deployment.
