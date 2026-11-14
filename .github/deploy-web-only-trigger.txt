@@ -1,1 +1,1 @@
-Move Google Play download link beside sign-in.
+Publish official Arabic Google Play badge beside login.
