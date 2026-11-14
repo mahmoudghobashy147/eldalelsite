@@ -60,6 +60,15 @@ edit('src/App.jsx', (source, replace) => {
     .replace('<button className="btn btn-primary btn-sm" onClick={handleAddPost}>✏️ أضف أول منشور</button>', '{canShowPostTools&&<button className="btn btn-primary btn-sm" onClick={handleAddPost}>✏️ أضف أول منشور</button>}')
     .replace('{/* Floating Add Post Button */}\n      <div', '{canShowPostTools&&<div')
     .replace('        ✏️\n      </div>', '        ✏️\n      </div>}');
+  const carousel = '        <AdsCarousel ads={homeAds} fallbackImage={luxuryHero}/>';
+  if (!home.includes(carousel)) throw new Error('Missing home carousel');
+  home = home.replace(carousel, carousel + `
+        {!isPlayApp() && <div style={{display:"flex",justifyContent:"center",padding:"12px 12px 4px"}}>
+          <a className="btn btn-primary" href="https://play.google.com/store/apps/details?id=com.company.eldalelelshamel" target="_blank" rel="noopener noreferrer">
+            حمّل تطبيق الدليل الشامل من Google Play
+          </a>
+        </div>}
+  `);
   app = app.slice(0,homeStart) + home + app.slice(homeEnd);
 
   const catalogButton = app.match(/<button data-profile-catalog-button="true"[^\n]+?<\/button>/);

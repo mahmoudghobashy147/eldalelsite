@@ -1,1 +1,1 @@
-Deploy registration recovery 4e6397b410a54fe174251d490cfee4e7c1c2e076
+Publish Google Play download link on the homepage.
