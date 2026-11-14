@@ -60,16 +60,15 @@ edit('src/App.jsx', (source, replace) => {
     .replace('<button className="btn btn-primary btn-sm" onClick={handleAddPost}>✏️ أضف أول منشور</button>', '{canShowPostTools&&<button className="btn btn-primary btn-sm" onClick={handleAddPost}>✏️ أضف أول منشور</button>}')
     .replace('{/* Floating Add Post Button */}\n      <div', '{canShowPostTools&&<div')
     .replace('        ✏️\n      </div>', '        ✏️\n      </div>}');
-  const carousel = '        <AdsCarousel ads={homeAds} fallbackImage={luxuryHero}/>';
-  if (!home.includes(carousel)) throw new Error('Missing home carousel');
-  home = home.replace(carousel, carousel + `
-        {!isPlayApp() && <div style={{display:"flex",justifyContent:"center",padding:"12px 12px 4px"}}>
-          <a className="btn btn-primary" href="https://play.google.com/store/apps/details?id=com.company.eldalelelshamel" target="_blank" rel="noopener noreferrer">
-            حمّل تطبيق الدليل الشامل من Google Play
-          </a>
-        </div>}
-  `);
+  const download = '<a href="https://play.google.com/store/apps/details?id=com.company.eldalelelshamel" target="_blank" rel="noopener noreferrer" title="حمّل الدليل الشامل من Google Play" style={{display:"inline-flex",alignItems:"center",minHeight:40,padding:"0 10px",borderRadius:12,background:"#e9e2c9",color:"#173f31",fontWeight:800,fontSize:12,textDecoration:"none",whiteSpace:"nowrap"}}>تحميل التطبيق</a>';
+  const mobileLogin = '<button className="release-login" onClick={()=>user?onNavigate("profile"):onRequireAuth()}>{user?"حسابي":"تسجيل الدخول"}</button>';
+  if (!home.includes(mobileLogin)) throw new Error('Missing mobile login');
+  home = home.replace(mobileLogin, '<div style={{display:"flex",flexWrap:"wrap",justifyContent:"flex-end",alignItems:"center",gap:6}}>{!isPlayApp() && '+download+'}'+mobileLogin+'</div>');
   app = app.slice(0,homeStart) + home + app.slice(homeEnd);
+
+  const desktopActions = '<div className="desktop-nav-actions" style={{display:"flex",gap:9,alignItems:"center",flexWrap:"wrap",justifyContent:"center"}}>';
+  if (!app.includes(desktopActions)) throw new Error('Missing desktop navigation actions');
+  app = app.replace(desktopActions, desktopActions + '{!isPlayApp() && '+download+'}');
 
   const catalogButton = app.match(/<button data-profile-catalog-button="true"[^\n]+?<\/button>/);
   if (!catalogButton) throw new Error('Missing profile catalog button');
