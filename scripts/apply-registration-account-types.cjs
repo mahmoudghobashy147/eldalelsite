@@ -11,11 +11,9 @@ function edit(path, transform, marker) {
 }
 
 edit('src/App.jsx', (source, replace) => {
-  const start = source.indexOf('const AuthScreen =');
-  const end = source.indexOf('const RegisterScreen =');
   let app = replace('accountPlanLabel,needsPaidActivation}=accountRolePolicy', 'accountPlanLabel,needsPaidActivation,canManageCatalog}=accountRolePolicy')(source);
   const authStart = app.indexOf('const AuthScreen =');
-  const authEnd = authStart + end - start;
+  const authEnd = app.indexOf('const RegisterScreen =', authStart);
   let auth = app.slice(authStart, authEnd);
   const choicesStart = auth.indexOf('            <div className="easy-create-account">');
   const choicesEnd = auth.indexOf('\n', choicesStart);
@@ -114,5 +112,24 @@ for (const path of ['firestore.rules', 'storage.rules']) {
     return output;
   }, "return kind in ['', 'craftsman', 'supplier']");
 }
+
+edit('scripts/test-firestore-rules.js', (source, replace) => replace(
+  '    // Subscription gate: owner needs an approved plan costing at least 600 EGP.',
+  `    // Registration roles stay fixed even when a member has an eligible plan.
+    await testEnv.withSecurityRulesDisabled(async ctx=>{
+      const seed=ctx.firestore();
+      await setDoc(doc(seed,"members","newTechnician"),{uid:"newTechnician",accountKind:"technician",type:"technician",plan:"vip",status:"approved"});
+      await setDoc(doc(seed,"members","newSupplier"),{uid:"newSupplier",accountKind:"supplier",type:"supplier",plan:"vip",status:"approved"});
+    });
+    const newTechnician=testEnv.authenticatedContext("newTechnician").firestore();
+    const newSupplier=testEnv.authenticatedContext("newSupplier").firestore();
+    await assertFails(updateDoc(doc(newTechnician,"members","newTechnician"),{accountKind:"supplier"}));
+    await assertFails(updateDoc(doc(newTechnician,"members","newTechnician"),{type:"supplier"}));
+    await assertSucceeds(updateDoc(doc(newSupplier,"members","newSupplier"),{type:"company"}));
+    await assertFails(setDoc(doc(newTechnician,"catalogBusinessRequests","newTechnician"),{ownerId:"newTechnician",name:"Technician",status:"pending"}));
+    await assertSucceeds(setDoc(doc(newSupplier,"catalogBusinessRequests","newSupplier"),{ownerId:"newSupplier",name:"Supplier",status:"pending"}));
+
+    // Subscription gate: owner needs an approved plan costing at least 600 EGP.`
+)(source), 'Registration roles stay fixed');
 
 console.log('Three account registration paths and catalog role permissions applied.');
