@@ -8,9 +8,9 @@ function normalizePhone(value){
  return /^01[0125][0-9]{8}$/.test(digits)?digits:'';
 }
 const phoneKey=phone=>phone;
-const duplicateMessage='رقم الموبايل مسجل بالفعل. سجّل الدخول بحسابك الحالي؛ لا يمكن استخدام نفس الرقم لحساب عميل ومشترك.';
+const duplicateMessage='رقم الموبايل مسجل بالفعل. سجّل الدخول بحسابك الحالي.';
 function fail(code,message){const e=new Error(message);e.code=code;throw e}
-function readInput(data){const phone=normalizePhone(data?.phone),name=String(data?.name||'').trim(),accountKind=data?.accountKind;if(!phone||name.length<1||name.length>100||!['customer','craftsman'].includes(accountKind))fail('invalid-argument','راجع الاسم ورقم الموبايل ونوع الحساب');return {phone,name,accountKind}}
+function readInput(data){const phone=normalizePhone(data?.phone),name=String(data?.name||'').trim(),accountKind=data?.accountKind;if(!phone||name.length<1||name.length>100||!['customer','craftsman','technician','supplier'].includes(accountKind))fail('invalid-argument','راجع الاسم ورقم الموبايل ونوع الحساب');return {phone,name,accountKind}}
 function matchesPhone(member,phone){return normalizePhone(member.phoneNormalized)===phone||normalizePhone(member.phone)===phone}
 async function assertAvailable(db,rawPhone){const phone=normalizePhone(rawPhone);if(!phone)fail('invalid-argument','رقم الموبايل غير صحيح');const index=await db.collection('memberPhoneIndex').doc(phoneKey(phone)).get();if(index.exists)fail('already-exists',duplicateMessage);const members=await db.collection('members').select('phone','phoneNormalized').get();if(members.docs.some(d=>matchesPhone(d.data(),phone)))fail('already-exists',duplicateMessage);return {available:true}}
 async function completeRegistration(db,uid,authEmail,data,now=new Date()){

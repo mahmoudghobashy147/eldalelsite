@@ -21,3 +21,13 @@ test('same-owner same-role retry is idempotent',async()=>{const h=harness();awai
 test('auth identity must match the canonical phone',async()=>{const h=harness();await assert.rejects(completeRegistration(h.db,'one','different@example.com',data()),{code:'permission-denied'});assert.equal(h.rows.size,0)});
 test('client cannot smuggle activation/admin flags into profile',async()=>{const h=harness();await completeRegistration(h.db,'one','01012345678@daleel.app',{...data('craftsman'),isAdmin:true,status:'approved',plan:'elite'});const m=h.rows.get('members/one');assert.equal(m.status,'pending');assert.equal(m.plan,'starter');assert.equal(m.isAdmin,undefined)});
 test('private index does not store clear-text phone',async()=>{const h=harness();await completeRegistration(h.db,'one','01012345678@daleel.app',data());assert.equal(h.rows.get('memberPhoneIndex/'+phoneKey('01012345678')).phone,undefined)});
+for (const kind of ['technician','supplier']) {
+  test(kind+' registration reserves the number and creates a pending profile',async()=>{
+    const {db,rows}=harness();
+    await completeRegistration(db,'one','01012345678@daleel.app',data(kind));
+    assert.equal(rows.get('members/one').accountKind,kind);
+    assert.equal(rows.get('members/one').status,'pending');
+    assert.equal(rows.get('memberPhoneIndex/01012345678').accountKind,kind);
+    await assert.rejects(completeRegistration(db,'one','01012345678@daleel.app',data('customer')),{code:'already-exists'});
+  });
+}
