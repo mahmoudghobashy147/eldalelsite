@@ -23,7 +23,7 @@ jobs:
           const {GoogleAuth,Impersonated}=require('./functions/node_modules/google-auth-library');
           const catalog=require('./functions/play-billing/catalog.json');
           const json=process.env.FIREBASE_SERVICE_ACCOUNT_JSON || Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString();
-          const auth=new GoogleAuth({credentials:JSON.parse(json),scopes:['https://www.googleapis.com/auth/androidpublisher']});
+          const auth=new GoogleAuth({credentials:JSON.parse(json),scopes:['https://www.googleapis.com/auth/cloud-platform']});
           (async()=>{
             try {
               const deployer=await auth.getClient();
