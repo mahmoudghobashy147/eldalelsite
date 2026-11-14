@@ -1,0 +1,42 @@
+name: Diagnose Google Play catalog access
+on:
+  push:
+    branches: [ops/play-catalog-diagnostic]
+    paths: [.github/workflows/play-catalog-diagnostic.yml]
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --prefix functions
+      - name: Read annual base plans
+        run: |
+          node <<'JS'
+          const {GoogleAuth}=require('./functions/node_modules/google-auth-library');
+          const catalog=require('./functions/play-billing/catalog.json');
+          const json=process.env.FIREBASE_SERVICE_ACCOUNT_JSON || Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '', 'base64').toString();
+          const auth=new GoogleAuth({credentials:JSON.parse(json),scopes:['https://www.googleapis.com/auth/androidpublisher']});
+          (async()=>{
+            try {
+              const client=await auth.getClient();
+              const url='https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'+catalog.packageName+'/subscriptions';
+              const {data}=await client.request({url,params:{pageSize:100}});
+              for(const product of catalog.products){
+                const record=data.subscriptions?.find(item=>item.productId===product.id);
+                console.log(product.id,JSON.stringify(record?.basePlans?.map(p=>({id:p.basePlanId,state:p.state,period:p.autoRenewingBasePlanType?.billingPeriodDuration}))||[]));
+              }
+            }catch(error){
+              const data=error.response?.data?.error;
+              console.error('Play API rejected catalog access',error.response?.status,data?.status,data?.message);
+              process.exitCode=1;
+            }
+          })();
+          JS
