@@ -32,13 +32,26 @@ jobs:
               const client=new Impersonated({sourceClient:deployer,targetPrincipal:runtime,targetScopes:['https://www.googleapis.com/auth/androidpublisher'],lifetime:300});
               const url='https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'+catalog.packageName+'/subscriptions';
               const {data}=await client.request({url,params:{pageSize:100}});
+              const conversion=await client.request({url:url.replace(/subscriptions$/,'pricing:convertRegionPrices'),method:'POST',data:{price:{currencyCode:'EGP',units:'100'}}});
+              for(const product of catalog.products) {
+                const record=data.subscriptions?.find(item=>item.productId===product.id);
+                if(!record) throw Error('Missing subscription '+product.id);
+                const basePlanId=product.basePlanId || catalog.basePlanId;
+                const basePlans=record.basePlans || [];
+                if(basePlans.some(p=>p.basePlanId===basePlanId)) continue;
+                const plan={basePlanId,autoRenewingBasePlanType:{billingPeriodDuration:catalog.billingPeriod,resubscribeState:'RESUBSCRIBE_STATE_INACTIVE'},regionalConfigs:[{regionCode:'EG',newSubscriberAvailability:true,price:{currencyCode:'EGP',units:String(product.price)}}]};
+                await client.request({url:url+'/'+product.id,method:'PATCH',params:{updateMask:'basePlans','regionsVersion.version':conversion.data.regionVersion.version},data:{packageName:catalog.packageName,productId:product.id,basePlans:[...basePlans,plan]}});
+                const saved=(await client.request({url:url+'/'+product.id})).data.basePlans.find(p=>p.basePlanId===basePlanId);
+                if(saved?.autoRenewingBasePlanType?.billingPeriodDuration!==catalog.billingPeriod || Number(saved.regionalConfigs.find(p=>p.regionCode==='EG')?.price?.units)!==product.price) throw Error('Plan readback mismatch '+product.id);
+                console.log('Verified annual draft:',product.id,basePlanId,saved.state);
+              }
               for(const product of catalog.products){
                 const record=data.subscriptions?.find(item=>item.productId===product.id);
                 console.log(product.id,JSON.stringify(record?.basePlans?.map(p=>({id:p.basePlanId,state:p.state,period:p.autoRenewingBasePlanType?.billingPeriodDuration}))||[]));
               }
             }catch(error){
               const data=error.response?.data?.error;
-              console.error('Play API rejected catalog access',error.response?.status,data?.status,data?.message);
+              console.error('Play API rejected catalog access',error.response?.status,data?.status,data?.message,error.message);
               process.exitCode=1;
             }
           })();
