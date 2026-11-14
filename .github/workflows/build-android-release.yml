@@ -3,6 +3,8 @@ name: Build Android Release AAB
 # نسخة Release الموقعة المخصصة لـ Google Play.
 # التشغيل يدوي فقط لأن التوقيع عملية إصدار، مش اختبار مع كل push.
 on:
+  push:
+    branches: [release/android-2.1.10]
   workflow_dispatch:
     inputs:
       version_code:
@@ -84,8 +86,8 @@ jobs:
 
       - name: Set Play release version
         env:
-          PLAY_VERSION_CODE: ${{ inputs.version_code }}
-          PLAY_VERSION_NAME: ${{ inputs.version_name }}
+          PLAY_VERSION_CODE: ${{ inputs.version_code || 10 }}
+          PLAY_VERSION_NAME: ${{ inputs.version_name || '2.1.10' }}
         run: |
           python3 - <<'PY'
           import os, re
@@ -122,11 +124,17 @@ jobs:
             -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
 
+      - name: Verify signed bundle
+        run: |
+          jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab | tee "$RUNNER_TEMP/aab-signature.txt"
+          grep -q 'jar verified' "$RUNNER_TEMP/aab-signature.txt"
+          cp android/app/build/outputs/bundle/release/app-release.aab eldalel-2.1.10-v10.aab
+
       - name: Upload signed AAB
         uses: actions/upload-artifact@v4
         with:
           name: eldalel-elshamel-release-aab
-          path: android/app/build/outputs/bundle/release/app-release.aab
+          path: eldalel-2.1.10-v10.aab
           if-no-files-found: error
           retention-days: 14
 
