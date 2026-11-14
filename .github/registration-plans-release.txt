@@ -1,1 +1,1 @@
-Continue registration and subscription release after successful Functions deployment.
+Deploy verified annual billing configuration and registration updates.
