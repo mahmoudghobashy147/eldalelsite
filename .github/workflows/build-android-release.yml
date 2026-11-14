@@ -22,29 +22,10 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Verify signing secrets are configured
-        shell: bash
-        run: |
-          missing=0
-          for key in ANDROID_KEYSTORE_BASE64 ANDROID_KEY_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
-            if [ -z "${!key}" ]; then
-              echo "::error::$key is not configured in GitHub Actions secrets"
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            exit 1
-          fi
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -106,39 +87,14 @@ jobs:
           p.write_text(s)
           PY
 
-      - name: Decode Android signing keystore
-        shell: bash
-        run: |
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$GITHUB_WORKSPACE/release.keystore"
-          test -s "$GITHUB_WORKSPACE/release.keystore"
-          chmod 600 "$GITHUB_WORKSPACE/release.keystore"
-
-      - name: Build signed Release AAB
+      - name: Build release bundle for local signing
         working-directory: android
-        shell: bash
-        run: |
-          chmod +x gradlew
-          ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/release.keystore" \
-            -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
+        run: chmod +x gradlew && ./gradlew bundleRelease
 
-      - name: Verify signed bundle
-        run: |
-          jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab | tee "$RUNNER_TEMP/aab-signature.txt"
-          grep -q 'jar verified' "$RUNNER_TEMP/aab-signature.txt"
-          cp android/app/build/outputs/bundle/release/app-release.aab eldalel-2.1.10-v10.aab
-
-      - name: Upload signed AAB
+      - name: Upload unsigned bundle
         uses: actions/upload-artifact@v4
         with:
-          name: eldalel-elshamel-release-aab
-          path: eldalel-2.1.10-v10.aab
+          name: eldalel-2.1.10-v10-unsigned
+          path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
-
-      - name: Remove decoded keystore
-        if: always()
-        shell: bash
-        run: rm -f "$GITHUB_WORKSPACE/release.keystore"
