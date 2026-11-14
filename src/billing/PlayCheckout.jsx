@@ -6,7 +6,20 @@ export const isPlayApp=()=>Capacitor.isNativePlatform()&&Capacitor.getPlatform()
 const productId=plan=>`eldalel_${plan}_annual`;
 const priceCache=new Map();
 async function priceFor(plan){const id=productId(plan);if(!priceCache.has(id))priceCache.set(id,Billing.product({productId:id}).catch(error=>{priceCache.delete(id);throw error}));return priceCache.get(id)}
-export function PlayPrice({plan}){const [price,setPrice]=useState('السعر في Google Play');useEffect(()=>{let live=true;priceFor(plan).then(r=>{if(live)setPrice(r.price+' / سنة')}).catch(()=>{if(live)setPrice('غير متاح حاليًا')});return()=>{live=false}},[plan]);return <span>{price}</span>}
+export function PlayPrice({plan, annualPrice}){
+  const [quote,setQuote]=useState(null);
+  useEffect(()=>{
+    let live=true;
+    priceFor(plan).then(result=>{
+      if(live) setQuote({plan,price:result.price});
+    }).catch(()=>{
+      if(live) setQuote(null);
+    });
+    return ()=>{live=false};
+  },[plan]);
+  if(quote?.plan===plan && quote.price) return <span>{quote.price} / سنة</span>;
+  return <span>{annualPrice} جنيه / سنة <small>(السعر المعلن)</small></span>;
+}
 export function PlayCheckout({plan,uid,invoke,onSuccess,supportPhone}){
   const [price,setPrice]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   useEffect(()=>{let live=true;setPrice('');setMessage('');priceFor(plan).then(r=>{if(live)setPrice(r.price)}).catch(()=>{if(live)setMessage('الباقة غير متاحة للشراء حاليًا. حاول لاحقًا.')});return()=>{live=false}},[plan]);

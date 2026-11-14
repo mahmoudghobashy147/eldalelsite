@@ -31,6 +31,7 @@ replace('const [plan, setPlan] = useState("premium");','const [plan, setPlan] = 
 replace('const [plan,setPlan]=useState("basic");','const [plan,setPlan]=useState(()=>availablePlanKeys(props.member)[0]);');
 replace('Object.entries(PLANS).map(([key,p])=>','availablePlanKeys(props.member).map(key=>[key,PLANS[key]]).map(([key,p])=>');
 replace('<PaymentScreen onBack={()=>setShowPayment(false)} darkMode={darkMode} onSuccess={handlePaySuccess}/></AccountPaymentGate>', '{member=><PaymentScreen member={member} onBack={()=>setShowPayment(false)} darkMode={darkMode} onSuccess={handlePaySuccess}/>}</AccountPaymentGate>');
+app = app.replaceAll('<PlayPrice plan={key}/>', '<PlayPrice plan={key} annualPrice={getPlanPrice(key,cfg)}/>');
 fs.writeFileSync(path,app);
 
 for (const file of ['firestore.rules','storage.rules','src/catalog-owner.jsx']) {

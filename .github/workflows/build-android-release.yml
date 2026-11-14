@@ -4,7 +4,7 @@ name: Build Android Release AAB
 # التشغيل يدوي فقط لأن التوقيع عملية إصدار، مش اختبار مع كل push.
 on:
   push:
-    branches: [release/android-2.1.10]
+    branches: [release/android-2.1.11]
   workflow_dispatch:
     inputs:
       version_code:
@@ -67,8 +67,8 @@ jobs:
 
       - name: Set Play release version
         env:
-          PLAY_VERSION_CODE: ${{ inputs.version_code || 10 }}
-          PLAY_VERSION_NAME: ${{ inputs.version_name || '2.1.10' }}
+          PLAY_VERSION_CODE: ${{ inputs.version_code || 11 }}
+          PLAY_VERSION_NAME: ${{ inputs.version_name || '2.1.11' }}
         run: |
           python3 - <<'PY'
           import os, re
@@ -94,7 +94,7 @@ jobs:
       - name: Upload unsigned bundle
         uses: actions/upload-artifact@v4
         with:
-          name: eldalel-2.1.10-v10-unsigned
+          name: eldalel-2.1.11-v11-unsigned
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
