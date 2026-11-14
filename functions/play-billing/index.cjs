@@ -12,6 +12,11 @@ async function google(path, method='GET', data) {
   return (await client.request({url:base+path, method, data, timeout:15000})).data;
 }
 const endMs = member => member.subscriptionEnd?.toMillis?.() || Date.parse(member.subscriptionEnd) || 0;
+function allowsPlan(member, plan) {
+  if (member.accountKind === 'supplier') return ['vip','company','elite','supplier_banner'].includes(plan);
+  if (member.accountKind === 'technician') return ['starter','basic','premium','vip'].includes(plan);
+  return plan !== 'supplier_banner' || ['supplier','company'].includes(member.type);
+}
 async function sync(token, uid) {
   const observedAt = Date.now();
   const purchase = await google(`/subscriptionsv2/tokens/${encodeURIComponent(token)}`);
@@ -25,6 +30,7 @@ async function sync(token, uid) {
     if (record.exists && record.data().uid !== uid) throw new HttpsError('permission-denied','الشراء مرتبط بحساب آخر');
     if (!memberSnap.exists || memberSnap.data().accountKind === 'customer') throw new HttpsError('failed-precondition','هذه الباقات لحساب المشترك');
     const member = memberSnap.data();
+    if (e.active && member.playTokenHash !== key && !allowsPlan(member,e.plan)) throw new HttpsError('failed-precondition','هذه الباقة غير متاحة لنوع حسابك');
     // Never replace an independently paid manual entitlement or another active purchase.
     if (e.active && member.status === 'approved' && (!endMs(member) || endMs(member) > now) && member.playTokenHash !== key) throw new HttpsError('failed-precondition','لديك اشتراك سارٍ؛ انتظر انتهاءه قبل شراء اشتراك جديد');
     tx.set(ref,{uid,token,checkedAtMs:observedAt,productId:e.productId,state:e.state,expiry:admin.firestore.Timestamp.fromMillis(e.expiry),checkedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});
@@ -44,6 +50,7 @@ exports.preparePlayPurchase = onCall(async request => {
   if (!Object.hasOwn(PRODUCTS, productId || '')) throw new HttpsError('invalid-argument','باقة غير متاحة');
   const snap = await db.collection('members').doc(uid).get();
   if (!snap.exists || snap.data().accountKind === 'customer') throw new HttpsError('failed-precondition','يلزم حساب مشترك');
+  if (!allowsPlan(snap.data(),PRODUCTS[productId])) throw new HttpsError('failed-precondition','هذه الباقة غير متاحة لنوع حسابك');
   if (snap.data().status === 'approved' && (!endMs(snap.data()) || endMs(snap.data()) > Date.now())) throw new HttpsError('failed-precondition','اشتراكك سارٍ؛ الشراء متاح بعد انتهائه');
   return {accountId:accountId(uid),productId};
 });

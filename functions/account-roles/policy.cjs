@@ -1,5 +1,5 @@
 'use strict';
-const plans=new Set(['starter','basic','premium','vip','company','elite']);
+const plans=new Set(['starter','basic','premium','vip','company','elite','supplier_banner']);
 const types=new Set([...plans,'craftsman','engineer','contractor','supplier']);
 const customer=m=>m?.accountKind==='customer'||(!m?.accountKind&&(m?.type==='customer'||m?.plan==='customer'));
 const millis=t=>{try{const v=t?.toMillis?.()??t?.toDate?.()?.getTime?.()??(t instanceof Date?t.getTime():typeof t==='number'?t:typeof t==='string'?Date.parse(t):null);return Number.isFinite(v)?v:null;}catch{return null;}};

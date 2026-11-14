@@ -13,7 +13,13 @@ const accountRoleLabel = member => {
   return ({customer:'عميل',technician:'صنايعي / فني',supplier:'مورد / شركة'})[accountRole(member)];
 };
 const canManageCatalog = member => !!member && (member.isAdmin === true || member.accountKind === 'supplier' || isLegacyProfessional(member));
+const availablePlanKeys = member => {
+  const role = accountRole(member);
+  if (role === 'customer') return [];
+  if (role === 'supplier') return ['vip', 'company', 'elite', 'supplier_banner'];
+  return ['starter', 'basic', 'premium', 'vip'];
+};
 const accountPlanLabel = (member, plans) => isCustomerAccount(member) ? 'باقة العميل — مجانية' : (plans?.[member?.plan || member?.type || 'starter']?.label || 'مبتدئ');
 const needsPaidActivation = member => !!member && !isCustomerAccount(member);
 
-module.exports = {isCustomerAccount, accountRole, accountRoleLabel, canManageCatalog, accountPlanLabel, needsPaidActivation};
+module.exports = {isCustomerAccount, accountRole, accountRoleLabel, canManageCatalog, availablePlanKeys, accountPlanLabel, needsPaidActivation};
