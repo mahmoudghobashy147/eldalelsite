@@ -32,18 +32,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Verify signing secrets are configured
+      - name: Check for the upload key
+        id: signing
         shell: bash
         run: |
-          missing=0
-          for key in ANDROID_KEYSTORE_BASE64 ANDROID_KEY_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
-            if [ -z "${!key}" ]; then
-              echo "::error::$key is not configured in GitHub Actions secrets"
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            exit 1
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$ANDROID_KEY_ALIAS" && -n "$ANDROID_KEYSTORE_PASSWORD" && -n "$ANDROID_KEY_PASSWORD" ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo '::warning::Upload key unavailable. Building an unsigned bundle for offline signing.'
           fi
 
       - name: Setup Node.js 22
@@ -107,6 +104,7 @@ jobs:
           PY
 
       - name: Decode Android signing keystore
+        if: steps.signing.outputs.available == 'true'
         shell: bash
         run: |
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$GITHUB_WORKSPACE/release.keystore"
@@ -114,6 +112,7 @@ jobs:
           chmod 600 "$GITHUB_WORKSPACE/release.keystore"
 
       - name: Build signed Release AAB
+        if: steps.signing.outputs.available == 'true'
         working-directory: android
         shell: bash
         run: |
@@ -125,12 +124,28 @@ jobs:
             -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
 
       - name: Verify AAB signature
+        if: steps.signing.outputs.available == 'true'
         run: jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload signed AAB
+        if: steps.signing.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: eldalel-elshamel-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Compile unsigned release bundle
+        if: steps.signing.outputs.available == 'false'
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew bundleRelease
+
+      - name: Upload unsigned bundle
+        if: steps.signing.outputs.available == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eldalel-${{ inputs.version_name || '2.1.12' }}-v${{ inputs.version_code || '12' }}-unsigned
           path: android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
