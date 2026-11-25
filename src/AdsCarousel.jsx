@@ -19,8 +19,8 @@ export default function AdsCarousel({ads:allAds=[]}) {
   <div className="video-coverflow-stage" dir="ltr" aria-label="اسحب الإعلانات يمينًا ويسارًا" onPointerDown={e=>{pointer.current=e.clientX;dragged.current=false}} onPointerUp={e=>{if(pointer.current!==null){const dx=e.clientX-pointer.current;if(Math.abs(dx)>40){dragged.current=true;go(current+(dx<0?1:-1))}pointer.current=null}}} onPointerCancel={()=>{pointer.current=null}}>
    {ads.map((ad,i)=>{const isCurrent=i===current,isPrev=multiple&&i===(current+n-1)%n,isNext=n>2&&i===(current+1)%n;const pos=isCurrent?'current':isPrev?'previous':isNext?'next':'hidden';return <article key={ad.id||i} className={`video-coverflow-card ${pos}`} aria-hidden={!isCurrent} aria-label={`الإعلان ${i+1} من ${n}`}>
     <button type="button" tabIndex={isCurrent?0:-1} className="video-coverflow-art" aria-label={`عرض الإعلان: ${ad.title||'إعلان'}`} onClick={()=>{if(dragged.current){dragged.current=false;return}if(!isCurrent){go(i);return}openAd(ad)}}>
-     <img className="video-coverflow-backdrop" src={ad.imageUrl} alt="" aria-hidden="true" loading="lazy" draggable="false"/>
-     <img className="video-coverflow-photo" src={ad.imageUrl} alt={ad.title||'إعلان'} loading={isCurrent?'eager':'lazy'} decoding="async" draggable="false"/>
+     <img className="video-coverflow-backdrop" src={pos==="hidden"?undefined:ad.imageUrl} alt="" aria-hidden="true" loading="lazy" draggable="false"/>
+     <img className="video-coverflow-photo" src={pos==="hidden"?undefined:ad.imageUrl} alt={ad.title||'إعلان'} loading={isCurrent?'eager':'lazy'} decoding="async" draggable="false"/>
     </button>
    </article>})}
   </div>
